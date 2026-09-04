@@ -41,7 +41,7 @@
       <div class="frame-wrap">
         <iframe id="learningFrame" title="Learning content" src="https://dolarrise.pages.dev/" referrerpolicy="strict-origin-when-cross-origin"></iframe>
       </div>
-      <div id="hint" class="hint">Tekan JALANKAN untuk memulai proses pembelajaran otomatis.</div>
+      <div id="hint" class="hint">Tekan JALANKAN. Proses hanya berjalan 1 kali, membuka 1 tab, lalu kembali ke menu utama setelah 15 detik.</div>
     </section>
   </main>
 
@@ -57,10 +57,10 @@
   const DOLLARRISE_URL = "https://dolarrise.pages.dev/";
   const DOLLARRISE_ORIGIN = "https://dolarrise.pages.dev";
 
-  let offerTimer = null;
   let autoRunning = false;
-  let waitingForDollarRise = false;
-  let runDelayTimer = null;
+  let oneShotDone = false;
+  let offerTimer = null;
+  let childTab = null;
 
   async function checkAccess(){
     try{
@@ -75,110 +75,112 @@
 
   function clearTimers(){
     if(offerTimer){clearTimeout(offerTimer);offerTimer=null;}
-    if(runDelayTimer){clearTimeout(runDelayTimer);runDelayTimer=null;}
   }
 
   function updateButtons(){
-    runButton.disabled = autoRunning;
+    runButton.disabled = autoRunning || oneShotDone;
     stopButton.disabled = !autoRunning;
   }
 
-  function stopLearning(message="Pembelajaran dihentikan."){
-    if(autoRunning && learningFrame.contentWindow){
-      try{ learningFrame.contentWindow.postMessage({type:"STOP_AUTORUN"},DOLLARRISE_ORIGIN); }catch{}
+  function closeChildTab(){
+    if(childTab && !childTab.closed){
+      try{childTab.close();}catch{}
     }
-    autoRunning=false;
-    waitingForDollarRise=false;
+    childTab=null;
+  }
+
+  function finishOneShot(message="Kembali ke menu utama. Siap dijalankan lagi."){
     clearTimers();
+    autoRunning=false;
+    oneShotDone=false;
+    closeChildTab();
     learningFrame.src=DOLLARRISE_URL;
     runButton.textContent="▶ JALANKAN";
     hint.textContent=message;
     updateButtons();
   }
 
-  function returnToDollarRise(callback){
-    clearTimers();
-    waitingForDollarRise = true;
-    learningFrame.src = DOLLARRISE_URL;
-    runDelayTimer = setTimeout(()=>{
-      runDelayTimer=null;
-      waitingForDollarRise=false;
-      if(typeof callback === "function" && autoRunning) callback();
-    },1000);
-  }
-
-  function sendRunUnlock(){
-    if(!autoRunning || waitingForDollarRise || !learningFrame.contentWindow) return;
-    learningFrame.contentWindow.postMessage({type:"RUN_UNLOCK"},DOLLARRISE_ORIGIN);
-  }
-
-  runButton.addEventListener("click",()=>{
-    if(autoRunning) return;
-    autoRunning=true;
-    runButton.textContent="▶ MENJALANKAN...";
-    hint.textContent="Pembelajaran sedang berjalan otomatis. Tekan STOP untuk menghentikan.";
-    updateButtons();
-    sendRunUnlock();
-  });
-
-  stopButton.addEventListener("click",()=>{
+  function stopLearning(){
     if(!autoRunning) return;
-    stopLearning();
-  });
+    clearTimers();
+    autoRunning=false;
+    try{childTab?.postMessage({type:"STOP_AUTORUN"},DOLLARRISE_ORIGIN);}catch{}
+    closeChildTab();
+    learningFrame.src=DOLLARRISE_URL;
+    runButton.textContent="▶ JALANKAN";
+    hint.textContent="Pembelajaran dihentikan. Silakan tekan JALANKAN jika ingin menjalankan lagi.";
+    updateButtons();
+  }
+
+  function startOneShot(){
+    if(autoRunning || oneShotDone) return;
+
+    autoRunning=true;
+    oneShotDone=true;
+    runButton.textContent="▶ MENJALANKAN...";
+    hint.textContent="Membuka 1 tab baru. Setelah 15 detik tab ditutup dan kembali ke menu utama.";
+    updateButtons();
+
+    // window.open harus dilakukan langsung dari klik tombol agar browser tidak memblokir tab baru.
+    childTab=window.open(DOLLARRISE_URL,"_blank");
+
+    if(!childTab){
+      finishOneShot("Tab baru diblokir browser. Izinkan pop-up lalu tekan JALANKAN lagi.");
+      return;
+    }
+
+    let sent=false;
+    const sendStart=()=>{
+      if(sent || !autoRunning || !childTab || childTab.closed) return;
+      sent=true;
+      try{childTab.postMessage({type:"RUN_UNLOCK"},DOLLARRISE_ORIGIN);}catch{}
+    };
+
+    try{childTab.addEventListener("load",sendStart,{once:true});}catch{}
+    setTimeout(sendStart,1500);
+  }
+
+  runButton.addEventListener("click",startOneShot);
+  stopButton.addEventListener("click",stopLearning);
 
   window.addEventListener("message",event=>{
     if(event.origin !== DOLLARRISE_ORIGIN || !event.data || typeof event.data !== "object") return;
+    if(!autoRunning || !oneShotDone) return;
 
+    // Hanya proses OPEN_OFFER satu kali. Tidak ada NEXT_OFFER atau RUN_UNLOCK ulang.
     if(event.data.type === "OPEN_OFFER"){
-      if(!autoRunning) return;
-      const offerUrl = event.data.url;
+      const offerUrl=event.data.url;
       if(typeof offerUrl !== "string" || offerUrl.length > 2048) return;
+
       let parsedUrl;
-      try{parsedUrl=new URL(offerUrl);}catch{ return; }
+      try{parsedUrl=new URL(offerUrl);}catch{return;}
       if(parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") return;
 
+      // Pastikan URL dibuka pada tab yang sama, bukan membuat tab kedua.
+      if(childTab && !childTab.closed){
+        try{childTab.location.href=parsedUrl.href;}catch{}
+      }
+
       clearTimers();
-      learningFrame.src=parsedUrl.href;
       offerTimer=setTimeout(()=>{
         offerTimer=null;
-        returnToDollarRise(()=>{if(autoRunning) sendRunUnlock();});
+        // Setelah tepat 15 detik, tutup tab dan kembali ke menu utama.
+        finishOneShot("Selesai. Tab sudah ditutup dan kembali ke menu utama.");
       },15000);
       return;
     }
 
-    if(event.data.type === "OFFER_LIMIT_REACHED"){
-      if(!autoRunning) return;
-      if(learningFrame.src.startsWith(DOLLARRISE_URL)){
-        learningFrame.contentWindow?.postMessage({type:"NEXT_OFFER"},DOLLARRISE_ORIGIN);
-      }else{
-        returnToDollarRise(()=>{
-          if(autoRunning) learningFrame.contentWindow?.postMessage({type:"NEXT_OFFER"},DOLLARRISE_ORIGIN);
-        });
-      }
+    // Semua event lain tidak memicu putaran berikutnya.
+    if(event.data.type === "OFFER_LIMIT_REACHED" || event.data.type === "OFFER_READY" || event.data.type === "ALL_OFFERS_DONE"){
       return;
-    }
-
-    if(event.data.type === "OFFER_READY"){
-      if(!autoRunning) return;
-      setTimeout(()=>{if(autoRunning) sendRunUnlock();},500);
-      return;
-    }
-
-    if(event.data.type === "ALL_OFFERS_DONE"){
-      autoRunning=false;
-      waitingForDollarRise=false;
-      clearTimers();
-      learningFrame.src=DOLLARRISE_URL;
-      runButton.disabled=false;
-      stopButton.disabled=true;
-      runButton.textContent="▶ SELESAI";
-      hint.textContent="Semua pembelajaran selesai.";
     }
   });
 
   logoutButton.addEventListener("click",async()=>{
     autoRunning=false;
+    oneShotDone=false;
     clearTimers();
+    closeChildTab();
     logoutButton.disabled=true;
     logoutButton.textContent="Logout...";
     try{await fetch("/api/logout",{method:"POST",credentials:"same-origin",cache:"no-store"});}catch{}
