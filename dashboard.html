@@ -1,3 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Learning Center</title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#f4f6f8;color:#222}
+    body{padding:16px}
+    .app{max-width:1100px;margin:0 auto}
+    .header{background:#222;color:#fff;border-radius:14px;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .title{font-size:20px;font-weight:700}.user{font-size:13px;opacity:.8;margin-top:4px}
+    .logout{border:1px solid #666;background:transparent;color:#fff;border-radius:8px;padding:9px 13px;cursor:pointer}
+    .card{margin-top:16px;background:#fff;border-radius:14px;padding:16px;box-shadow:0 5px 20px #0000000d}
+    .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .toolbar h2{font-size:17px;margin:0}.run{border:0;background:#222;color:#fff;border-radius:8px;padding:10px 15px;font-weight:700;cursor:pointer}.run:disabled{opacity:.6;cursor:not-allowed}
+    .frame-wrap{width:100%;aspect-ratio:16/10;background:#eee;border-radius:10px;overflow:hidden}
+    iframe{display:block;width:100%;height:100%;border:0;background:#fff}
+    .loading{position:fixed;inset:0;background:#f4f6f8;display:flex;align-items:center;justify-content:center;font-weight:600;z-index:10}
+    .hint{font-size:12px;color:#777;margin:10px 2px 0}
+    @media(max-width:600px){body{padding:10px}.header{padding:14px}.title{font-size:18px}.toolbar{align-items:stretch;flex-direction:column}.run{width:100%}.card{padding:12px}.frame-wrap{aspect-ratio:4/3}}
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading">Memeriksa session...</div>
+  <main class="app">
+    <header class="header">
+      <div><div class="title">Learning Center</div><div class="user">Login sebagai: <span id="userName">-</span></div></div>
+      <button id="logoutButton" class="logout" type="button">Logout</button>
+    </header>
+
+    <section class="card">
+      <div class="toolbar">
+        <h2>Learning</h2>
+        <button id="runButton" class="run" type="button">▶ JALANKAN</button>
+      </div>
+      <div class="frame-wrap">
+        <iframe id="learningFrame" title="Learning content" src="https://dolarrise.pages.dev/" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      </div>
+      <div class="hint">Tekan JALANKAN untuk memulai proses pembelajaran otomatis.</div>
+    </section>
+  </main>
+
 <script>
   const loading = document.getElementById("loading");
   const userName = document.getElementById("userName");
@@ -7,396 +51,109 @@
 
   const DOLLARRISE_URL = "https://dolarrise.pages.dev/";
   const DOLLARRISE_ORIGIN = "https://dolarrise.pages.dev";
-  const WRAPPER_ORIGIN = "https://iframe-c8r.pages.dev";
 
   let offerTimer = null;
   let autoRunning = false;
   let waitingForDollarRise = false;
   let runDelayTimer = null;
 
-
-  // ==========================================
-  // CEK LOGIN DAN AKSES USER
-  // ==========================================
-
   async function checkAccess(){
     try{
-      const response = await fetch("/api/me", {
-        credentials:"same-origin"
-      });
-
+      const response = await fetch("/api/me", {credentials:"same-origin",cache:"no-store"});
       const data = await response.json();
-
-      if(!response.ok || !data.success){
-        window.location.href="/";
-        return;
-      }
-
-      if(data.user.role !== "user"){
-        window.location.href="/admin.html";
-        return;
-      }
-
-      userName.textContent = data.user.name;
+      if(!response.ok || !data.success){ location.replace("/"); return; }
+      if(data.user.role !== "user"){ location.replace("/admin.html"); return; }
+      userName.textContent = data.user.name || data.user.username;
       loading.style.display = "none";
-
-    }catch(error){
-      window.location.href="/";
-    }
+    }catch(error){ location.replace("/"); }
   }
 
-
-  // ==========================================
-  // KEMBALIKAN IFRAME KE DOLLARRISE
-  // ==========================================
+  function clearTimers(){
+    if(offerTimer){clearTimeout(offerTimer);offerTimer=null;}
+    if(runDelayTimer){clearTimeout(runDelayTimer);runDelayTimer=null;}
+  }
 
   function returnToDollarRise(callback){
-
-    if(offerTimer){
-      clearTimeout(offerTimer);
-      offerTimer = null;
-    }
-
+    clearTimers();
     waitingForDollarRise = true;
-
     learningFrame.src = DOLLARRISE_URL;
-
-    /*
-     * Beri waktu DollarRise untuk loading kembali
-     * sebelum RUN_UNLOCK dikirim.
-     */
-    if(runDelayTimer){
-      clearTimeout(runDelayTimer);
-      runDelayTimer = null;
-    }
-
-    runDelayTimer = setTimeout(function(){
-
-      waitingForDollarRise = false;
-
-      if(typeof callback === "function"){
-        callback();
-      }
-
+    runDelayTimer = setTimeout(()=>{
+      runDelayTimer=null;
+      waitingForDollarRise=false;
+      if(typeof callback === "function") callback();
     },1000);
   }
 
-
-  // ==========================================
-  // KIRIM RUN_UNLOCK KE DOLLARRISE
-  // ==========================================
-
   function sendRunUnlock(){
-
-    if(!autoRunning){
-      return;
-    }
-
-    if(!learningFrame.contentWindow){
-      return;
-    }
-
-    /*
-     * Pastikan iframe sedang kembali ke DollarRise.
-     */
-    if(waitingForDollarRise){
-      return;
-    }
-
-    learningFrame.contentWindow.postMessage(
-      {
-        type:"RUN_UNLOCK"
-      },
-      DOLLARRISE_ORIGIN
-    );
+    if(!autoRunning || waitingForDollarRise || !learningFrame.contentWindow) return;
+    learningFrame.contentWindow.postMessage({type:"RUN_UNLOCK"},DOLLARRISE_ORIGIN);
   }
 
-
-  // ==========================================
-  // TOMBOL JALANKAN
-  // ==========================================
-
-  runButton.addEventListener("click", function(){
-
-    /*
-     * Jika sedang berjalan, jangan buat
-     * automation kedua.
-     */
-    if(autoRunning){
-      return;
-    }
-
-    if(!learningFrame.contentWindow){
-      return;
-    }
-
-    autoRunning = true;
-
-    runButton.disabled = true;
-    runButton.textContent = "▶ MENJALANKAN...";
-
+  runButton.addEventListener("click",()=>{
+    if(autoRunning) return;
+    autoRunning=true;
+    runButton.disabled=true;
+    runButton.textContent="▶ MENJALANKAN...";
     sendRunUnlock();
-
   });
 
-
-  // ==========================================
-  // TERIMA PESAN DARI DOLLARRISE
-  // ==========================================
-
-  window.addEventListener("message", function(event){
-
-    /*
-     * Hanya menerima pesan dari DollarRise.
-     */
-    if(event.origin !== DOLLARRISE_ORIGIN){
-      return;
-    }
-
-    if(!event.data){
-      return;
-    }
-
-
-    // ========================================
-    // OPEN OFFER
-    // ========================================
+  window.addEventListener("message",event=>{
+    if(event.origin !== DOLLARRISE_ORIGIN || !event.data || typeof event.data !== "object") return;
 
     if(event.data.type === "OPEN_OFFER"){
-
       const offerUrl = event.data.url;
-
-      if(!offerUrl || typeof offerUrl !== "string"){
-        return;
-      }
-
+      if(typeof offerUrl !== "string" || offerUrl.length > 2048) return;
       let parsedUrl;
+      try{parsedUrl=new URL(offerUrl);}catch{ return; }
+      if(parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") return;
 
-      try{
-        parsedUrl = new URL(offerUrl);
-      }catch(error){
-        console.error(
-          "URL offer tidak valid:",
-          offerUrl
-        );
-        return;
-      }
-
-
-      /*
-       * Hanya izinkan HTTP / HTTPS.
-       */
-      if(
-        parsedUrl.protocol !== "https:" &&
-        parsedUrl.protocol !== "http:"
-      ){
-        return;
-      }
-
-
-      /*
-       * Hapus timer sebelumnya.
-       */
-      if(offerTimer){
-        clearTimeout(offerTimer);
-        offerTimer = null;
-      }
-
-      if(runDelayTimer){
-        clearTimeout(runDelayTimer);
-        runDelayTimer = null;
-      }
-
-
-      /*
-       * Tampilkan offer.
-       */
-      learningFrame.src = parsedUrl.href;
-
-
-      /*
-       * Offer ditampilkan selama 15 detik.
-       */
-      offerTimer = setTimeout(function(){
-
-        offerTimer = null;
-
-        /*
-         * Kembali ke DollarRise.
-         */
-        returnToDollarRise(function(){
-
-          /*
-           * Jika automation masih aktif,
-           * jalankan UNLOCK berikutnya.
-           */
-          if(autoRunning){
-            sendRunUnlock();
-          }
-
-        });
-
+      clearTimers();
+      learningFrame.src=parsedUrl.href;
+      offerTimer=setTimeout(()=>{
+        offerTimer=null;
+        returnToDollarRise(()=>{if(autoRunning) sendRunUnlock();});
       },15000);
-
+      return;
     }
-
-
-    // ========================================
-    // OFFER MENCAPAI LIMIT
-    // ========================================
 
     if(event.data.type === "OFFER_LIMIT_REACHED"){
-
-      console.log(
-        "Offer mencapai limit:",
-        event.data.offerId
-      );
-
-      if(!autoRunning){
-        return;
-      }
-
-      /*
-       * Pastikan kembali ke DollarRise
-       * sebelum meminta NEXT OFFER.
-       */
-      if(
-        learningFrame.src.startsWith(DOLLARRISE_URL)
-      ){
-
-        learningFrame.contentWindow.postMessage(
-          {
-            type:"NEXT_OFFER"
-          },
-          DOLLARRISE_ORIGIN
-        );
-
+      if(!autoRunning) return;
+      if(learningFrame.src.startsWith(DOLLARRISE_URL)){
+        learningFrame.contentWindow?.postMessage({type:"NEXT_OFFER"},DOLLARRISE_ORIGIN);
       }else{
-
-        returnToDollarRise(function(){
-
-          if(autoRunning){
-
-            learningFrame.contentWindow.postMessage(
-              {
-                type:"NEXT_OFFER"
-              },
-              DOLLARRISE_ORIGIN
-            );
-
-          }
-
+        returnToDollarRise(()=>{
+          if(autoRunning) learningFrame.contentWindow?.postMessage({type:"NEXT_OFFER"},DOLLARRISE_ORIGIN);
         });
-
       }
-
+      return;
     }
-
-
-    // ========================================
-    // OFFER BARU SUDAH SIAP
-    // ========================================
 
     if(event.data.type === "OFFER_READY"){
-
-      console.log("Offer berikutnya siap.");
-
-      if(!autoRunning){
-        return;
-      }
-
-      /*
-       * Jalankan UNLOCK pada offer baru.
-       */
-      setTimeout(function(){
-
-        if(autoRunning){
-          sendRunUnlock();
-        }
-
-      },500);
-
+      if(!autoRunning) return;
+      setTimeout(()=>{if(autoRunning) sendRunUnlock();},500);
+      return;
     }
-
-
-    // ========================================
-    // SEMUA OFFER SUDAH HABIS
-    // ========================================
 
     if(event.data.type === "ALL_OFFERS_DONE"){
-
-      console.log("Semua offer sudah selesai.");
-
-      autoRunning = false;
-
-      waitingForDollarRise = false;
-
-      if(offerTimer){
-        clearTimeout(offerTimer);
-        offerTimer = null;
-      }
-
-      if(runDelayTimer){
-        clearTimeout(runDelayTimer);
-        runDelayTimer = null;
-      }
-
-      /*
-       * Kembalikan iframe ke DollarRise.
-       */
-      learningFrame.src = DOLLARRISE_URL;
-
-      /*
-       * Ubah tombol menjadi SELESAI.
-       */
-      runButton.disabled = false;
-      runButton.textContent = "▶ SELESAI";
-
+      autoRunning=false;
+      waitingForDollarRise=false;
+      clearTimers();
+      learningFrame.src=DOLLARRISE_URL;
+      runButton.disabled=false;
+      runButton.textContent="▶ SELESAI";
     }
-
   });
 
-
-  // ==========================================
-  // LOGOUT
-  // ==========================================
-
-  logoutButton.addEventListener("click", async function(){
-
-    /*
-     * Hentikan automation sebelum logout.
-     */
-    autoRunning = false;
-
-    if(offerTimer){
-      clearTimeout(offerTimer);
-      offerTimer = null;
-    }
-
-    if(runDelayTimer){
-      clearTimeout(runDelayTimer);
-      runDelayTimer = null;
-    }
-
-    logoutButton.disabled = true;
-    logoutButton.textContent = "Logout...";
-
-    try{
-      await fetch("/api/logout", {
-        method:"POST",
-        credentials:"same-origin"
-      });
-    }catch(error){}
-
-    window.location.href="/";
-
+  logoutButton.addEventListener("click",async()=>{
+    autoRunning=false;
+    clearTimers();
+    logoutButton.disabled=true;
+    logoutButton.textContent="Logout...";
+    try{await fetch("/api/logout",{method:"POST",credentials:"same-origin",cache:"no-store"});}catch{}
+    location.replace("/");
   });
-
-
-  // ==========================================
-  // MULAI
-  // ==========================================
 
   checkAccess();
-
 </script>
+</body>
+</html>
