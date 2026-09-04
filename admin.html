@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Admin - Learning Center</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+    }
+
+    header {
+      background: #222;
+      color: white;
+      padding: 18px 20px;
+    }
+
+    .header-inner {
+      max-width: 1100px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .admin-name {
+      font-size: 13px;
+      opacity: .8;
+      margin-top: 4px;
+    }
+
+    .logout {
+      border: 1px solid rgba(255,255,255,.4);
+      background: transparent;
+      color: white;
+      padding: 9px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+
+    .logout:hover {
+      background: rgba(255,255,255,.1);
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 25px auto;
+      padding: 0 20px 40px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 22px;
+      margin-bottom: 20px;
+      box-shadow: 0 5px 20px rgba(0,0,0,.05);
+    }
+
+    h2 {
+      margin: 0 0 20px;
+      font-size: 19px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #555;
+    }
+
+    .add-button {
+      padding: 11px 18px;
+      border: 0;
+      border-radius: 8px;
+      background: #222;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .add-button:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    .message {
+      margin-top: 14px;
+      padding: 10px;
+      border-radius: 8px;
+      display: none;
+      font-size: 14px;
+    }
+
+    .message.success {
+      display: block;
+      background: #edf8ef;
+      color: #26733a;
+    }
+
+    .message.error {
+      display: block;
+      background: #fff0f0;
+      color: #b42318;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 650px;
+    }
+
+    th,
+    td {
+      padding: 13px 10px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      font-size: 12px;
+      color: #777;
+      text-transform: uppercase;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 5px 9px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .active {
+      background: #eaf7ed;
+      color: #26733a;
+    }
+
+    .inactive {
+      background: #fff0f0;
+      color: #b42318;
+    }
+
+    .role {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 25px;
+      color: #777;
+    }
+
+    @media (max-width: 800px) {
+      .form-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .add-button {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 520px) {
+      header {
+        padding: 15px;
+      }
+
+      .header-inner {
+        align-items: flex-start;
+      }
+
+      .title {
+        font-size: 18px;
+      }
+
+      main {
+        margin-top: 18px;
+        padding: 0 12px 30px;
+      }
+
+      .card {
+        padding: 17px;
+        border-radius: 12px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="header-inner">
+
+    <div>
+      <div class="title">
+        Learning Center — Admin
+      </div>
+
+      <div class="admin-name" id="adminName">
+        Memeriksa session...
+      </div>
+    </div>
+
+    <button
+      class="logout"
+      id="logoutButton"
+    >
+      Logout
+    </button>
+
+  </div>
+</header>
+
+<main>
+
+  <!-- TAMBAH USER -->
+  <section class="card">
+
+    <h2>
+      Tambah Pengguna
+    </h2>
+
+    <form id="addUserForm">
+
+      <div class="form-grid">
+
+        <div>
+          <label for="name">
+            Nama
+          </label>
+
+          <input
+            id="name"
+            type="text"
+            placeholder="Nama pengguna"
+            required
+          >
+        </div>
+
+        <div>
+          <label for="username">
+            Username
+          </label>
+
+          <input
+            id="username"
+            type="text"
+            placeholder="Username"
+            required
+          >
+        </div>
+
+        <div>
+          <label for="password">
+            Password
+          </label>
+
+          <input
+            id="password"
+            type="password"
+            placeholder="Minimal 6 karakter"
+            required
+          >
+        </div>
+
+        <button
+          type="submit"
+          class="add-button"
+          id="addButton"
+        >
+          + Tambah
+        </button>
+
+      </div>
+
+    </form>
+
+    <div
+      id="formMessage"
+      class="message"
+    ></div>
+
+  </section>
+
+
+  <!-- DAFTAR USER -->
+  <section class="card">
+
+    <h2>
+      Daftar Pengguna
+    </h2>
+
+    <div class="table-wrap">
+
+      <table>
+
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nama</th>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Dibuat</th>
+          </tr>
+        </thead>
+
+        <tbody id="usersBody">
+
+          <tr>
+            <td colspan="6" class="empty">
+              Memuat data...
+            </td>
+          </tr>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </section>
+
+</main>
+
+
+<script>
+
+  const adminName =
+    document.getElementById("adminName");
+
+  const usersBody =
+    document.getElementById("usersBody");
+
+  const addUserForm =
+    document.getElementById("addUserForm");
+
+  const addButton =
+    document.getElementById("addButton");
+
+  const formMessage =
+    document.getElementById("formMessage");
+
+  const logoutButton =
+    document.getElementById("logoutButton");
+
+
+  function showMessage(text, type) {
+
+    formMessage.textContent = text;
+
+    formMessage.className =
+      "message " + type;
+  }
+
+
+  function escapeHtml(value) {
+
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+
+  async function checkAdmin() {
+
+    try {
+
+      const response =
+        await fetch("/api/me", {
+          credentials: "same-origin"
+        });
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data.success ||
+        data.user.role !== "admin"
+      ) {
+
+        window.location.href = "/";
+
+        return false;
+      }
+
+      adminName.textContent =
+        "Login sebagai: " +
+        data.user.name;
+
+      return true;
+
+    } catch (error) {
+
+      window.location.href = "/";
+
+      return false;
+    }
+  }
+
+
+  async function loadUsers() {
+
+    usersBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="empty">
+          Memuat data...
+        </td>
+      </tr>
+    `;
+
+    try {
+
+      const response =
+        await fetch("/api/admin/users", {
+          credentials: "same-origin"
+        });
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data.success
+      ) {
+
+        usersBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="empty">
+              ${escapeHtml(
+                data.message || "Gagal memuat data."
+              )}
+            </td>
+          </tr>
+        `;
+
+        return;
+      }
+
+      if (!data.users.length) {
+
+        usersBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="empty">
+              Belum ada pengguna.
+            </td>
+          </tr>
+        `;
+
+        return;
+      }
+
+      usersBody.innerHTML =
+        data.users.map(user => {
+
+          const status =
+            Number(user.active) === 1
+              ? `
+                <span class="status active">
+                  Aktif
+                </span>
+              `
+              : `
+                <span class="status inactive">
+                  Nonaktif
+                </span>
+              `;
+
+          return `
+            <tr>
+              <td>${escapeHtml(user.id)}</td>
+
+              <td>
+                ${escapeHtml(user.name)}
+              </td>
+
+              <td>
+                ${escapeHtml(user.username)}
+              </td>
+
+              <td>
+                <span class="role">
+                  ${escapeHtml(user.role)}
+                </span>
+              </td>
+
+              <td>
+                ${status}
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  user.created_at
+                )}
+              </td>
+            </tr>
+          `;
+
+        }).join("");
+
+    } catch (error) {
+
+      usersBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="empty">
+            Tidak dapat terhubung ke server.
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+
+  addUserForm.addEventListener(
+    "submit",
+    async function(event) {
+
+      event.preventDefault();
+
+      const name =
+        document.getElementById("name")
+          .value.trim();
+
+      const username =
+        document.getElementById("username")
+          .value.trim();
+
+      const password =
+        document.getElementById("password")
+          .value;
+
+      addButton.disabled = true;
+      addButton.textContent = "Menyimpan...";
+
+      formMessage.className = "message";
+      formMessage.textContent = "";
+
+      try {
+
+        const response =
+          await fetch("/api/admin/users", {
+
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            credentials: "same-origin",
+
+            body: JSON.stringify({
+              name,
+              username,
+              password
+            })
+
+          });
+
+        const data =
+          await response.json();
+
+        if (
+          !response.ok ||
+          !data.success
+        ) {
+
+          showMessage(
+            data.message ||
+            "Gagal membuat pengguna.",
+            "error"
+          );
+
+        } else {
+
+          showMessage(
+            "Pengguna berhasil dibuat.",
+            "success"
+          );
+
+          addUserForm.reset();
+
+          await loadUsers();
+        }
+
+      } catch (error) {
+
+        showMessage(
+          "Tidak dapat terhubung ke server.",
+          "error"
+        );
+
+      } finally {
+
+        addButton.disabled = false;
+        addButton.textContent = "+ Tambah";
+      }
+    }
+  );
+
+
+  logoutButton.addEventListener(
+    "click",
+    async function() {
+
+      logoutButton.disabled = true;
+      logoutButton.textContent =
+        "Logout...";
+
+      try {
+
+        await fetch("/api/logout", {
+          method: "POST",
+          credentials: "same-origin"
+        });
+
+      } catch (error) {
+        // Tetap arahkan ke login
+      }
+
+      window.location.href = "/";
+    }
+  );
+
+
+  async function init() {
+
+    const isAdmin =
+      await checkAdmin();
+
+    if (!isAdmin) {
+      return;
+    }
+
+    await loadUsers();
+  }
+
+
+  init();
+
+</script>
+
+</body>
+</html>
