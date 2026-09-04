@@ -3,280 +3,84 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>Learning Center</title>
-
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-    }
-
-    header {
-      height: 64px;
-      background: #222;
-      color: white;
-      display: flex;
-      align-items: center;
-    }
-
-    .header-inner {
-      width: 100%;
-      max-width: 1200px;
-      margin: auto;
-      padding: 0 20px;
-
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 15px;
-    }
-
-    .brand {
-      font-size: 19px;
-      font-weight: 700;
-    }
-
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .user-name {
-      font-size: 13px;
-      opacity: .9;
-    }
-
-    .logout {
-      border: 1px solid rgba(255,255,255,.4);
-      background: transparent;
-      color: white;
-      padding: 8px 13px;
-      border-radius: 7px;
-      cursor: pointer;
-    }
-
-    .logout:hover {
-      background: rgba(255,255,255,.1);
-    }
-
-    main {
-      width: 100%;
-      height: calc(100vh - 64px);
-      padding: 15px;
-    }
-
-    .learning-box {
-      width: 100%;
-      height: 100%;
-      max-width: 1400px;
-      margin: auto;
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 18px rgba(0,0,0,.06);
-    }
-
-    iframe {
-      display: block;
-      width: 100%;
-      height: 100%;
-      border: 0;
-    }
-
-    .loading {
-      position: fixed;
-      inset: 0;
-      background: #f4f6f8;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10;
-      font-size: 15px;
-      color: #555;
-    }
-
-    @media (max-width: 600px) {
-
-      header {
-        height: 58px;
-      }
-
-      .header-inner {
-        padding: 0 12px;
-      }
-
-      .brand {
-        font-size: 16px;
-      }
-
-      .user-name {
-        display: none;
-      }
-
-      .logout {
-        padding: 7px 11px;
-        font-size: 12px;
-      }
-
-      main {
-        height: calc(100vh - 58px);
-        padding: 0;
-      }
-
-      .learning-box {
-        border-radius: 0;
-      }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;width:100%;height:100%;font-family:Arial,sans-serif;background:#f4f6f8}
+    header{height:64px;background:#222;color:white;display:flex;align-items:center}
+    .header-inner{width:100%;max-width:1200px;margin:auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:15px}
+    .brand{font-size:19px;font-weight:700}
+    .user-info{display:flex;align-items:center;gap:12px}
+    .user-name{font-size:13px;opacity:.9}
+    .logout{border:1px solid rgba(255,255,255,.4);background:transparent;color:white;padding:8px 13px;border-radius:7px;cursor:pointer}
+    .logout:hover{background:rgba(255,255,255,.1)}
+    main{width:100%;height:calc(100vh - 64px);padding:15px}
+    .learning-box{width:100%;height:100%;max-width:1400px;margin:auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.06);display:flex;flex-direction:column}
+    .control-bar{flex:0 0 auto;padding:10px 12px;background:#fff;border-bottom:1px solid #e7e7e7;display:flex;justify-content:center;align-items:center}
+    .run-button{border:0;background:#222;color:#fff;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;min-width:150px}
+    .run-button:hover{background:#333}
+    .run-button:disabled{opacity:.55;cursor:wait}
+    iframe{display:block;width:100%;height:100%;border:0;flex:1}
+    .loading{position:fixed;inset:0;background:#f4f6f8;display:flex;align-items:center;justify-content:center;z-index:10;font-size:15px;color:#555}
+    @media(max-width:600px){
+      header{height:58px}.header-inner{padding:0 12px}.brand{font-size:16px}.user-name{display:none}.logout{padding:7px 11px;font-size:12px}
+      main{height:calc(100vh - 58px);padding:0}.learning-box{border-radius:0}.control-bar{padding:8px}.run-button{width:100%;min-width:0;padding:10px;font-size:13px}
     }
   </style>
 </head>
-
 <body>
-
-  <div class="loading" id="loading">
-    Memeriksa akses...
-  </div>
-
+  <div class="loading" id="loading">Memeriksa akses...</div>
   <header>
-
     <div class="header-inner">
-
-      <div class="brand">
-        Learning Center
-      </div>
-
+      <div class="brand">Learning Center</div>
       <div class="user-info">
-
-        <span
-          class="user-name"
-          id="userName"
-        >
-          Memuat...
-        </span>
-
-        <button
-          class="logout"
-          id="logoutButton"
-        >
-          Logout
-        </button>
-
+        <span class="user-name" id="userName">Memuat...</span>
+        <button class="logout" id="logoutButton">Logout</button>
       </div>
-
     </div>
-
   </header>
-
-
   <main>
-
     <div class="learning-box">
-
-      <iframe
-        src="https://dolarrise.pages.dev/"
-        title="Learning Center"
-        id="learningFrame"
-      ></iframe>
-
+      <div class="control-bar">
+        <button class="run-button" id="runButton" type="button">▶ JALANKAN</button>
+      </div>
+      <iframe src="https://dolarrise.pages.dev/" title="Learning Center" id="learningFrame"></iframe>
     </div>
-
   </main>
-
-
   <script>
+    const loading=document.getElementById("loading");
+    const userName=document.getElementById("userName");
+    const logoutButton=document.getElementById("logoutButton");
+    const runButton=document.getElementById("runButton");
+    const learningFrame=document.getElementById("learningFrame");
 
-    const loading =
-      document.getElementById("loading");
-
-    const userName =
-      document.getElementById("userName");
-
-    const logoutButton =
-      document.getElementById("logoutButton");
-
-
-    async function checkAccess() {
-
-      try {
-
-        const response =
-          await fetch("/api/me", {
-            credentials: "same-origin"
-          });
-
-        const data =
-          await response.json();
-
-        if (
-          !response.ok ||
-          !data.success
-        ) {
-          window.location.href = "/";
-          return;
-        }
-
-        /*
-          Hanya user biasa yang boleh
-          masuk ke dashboard ini.
-        */
-
-        if (data.user.role !== "user") {
-
-          window.location.href =
-            "/admin.html";
-
-          return;
-        }
-
-        userName.textContent =
-          data.user.name;
-
-        loading.style.display = "none";
-
-      } catch (error) {
-
-        window.location.href = "/";
-      }
+    async function checkAccess(){
+      try{
+        const response=await fetch("/api/me",{credentials:"same-origin"});
+        const data=await response.json();
+        if(!response.ok||!data.success){window.location.href="/";return}
+        if(data.user.role!=="user"){window.location.href="/admin.html";return}
+        userName.textContent=data.user.name;
+        loading.style.display="none";
+      }catch(error){window.location.href="/"}
     }
 
+    runButton.addEventListener("click",function(){
+      if(!learningFrame.contentWindow)return;
+      runButton.disabled=true;
+      runButton.textContent="▶ MENJALANKAN...";
+      learningFrame.contentWindow.postMessage({type:"RUN_UNLOCK"},"https://dolarrise.pages.dev");
+      setTimeout(function(){runButton.disabled=false;runButton.textContent="▶ JALANKAN"},1200);
+    });
 
-    logoutButton.addEventListener(
-      "click",
-      async function() {
-
-        logoutButton.disabled = true;
-        logoutButton.textContent =
-          "Logout...";
-
-        try {
-
-          await fetch("/api/logout", {
-            method: "POST",
-            credentials: "same-origin"
-          });
-
-        } catch (error) {
-          // Tetap kembali ke login
-        }
-
-        window.location.href = "/";
-      }
-    );
-
+    logoutButton.addEventListener("click",async function(){
+      logoutButton.disabled=true;
+      logoutButton.textContent="Logout...";
+      try{await fetch("/api/logout",{method:"POST",credentials:"same-origin"})}catch(error){}
+      window.location.href="/";
+    });
 
     checkAccess();
-
   </script>
-
 </body>
 </html>
