@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Learning Center</title>
+  <title>Learning Center - Login</title>
 
   <style>
     * {
@@ -13,64 +13,246 @@
 
     body {
       margin: 0;
+      min-height: 100vh;
       font-family: Arial, sans-serif;
       background: #f4f6f8;
-      color: #222;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
     }
 
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 30px 20px;
-    }
-
-    .card {
-      background: white;
+    .login-box {
+      width: 100%;
+      max-width: 400px;
+      background: #ffffff;
+      padding: 35px 30px;
       border-radius: 16px;
-      padding: 30px;
+      box-shadow: 0 10px 35px rgba(0,0,0,0.08);
+    }
+
+    .logo {
       text-align: center;
-      box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+      font-size: 28px;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 8px;
     }
 
-    h1 {
-      margin-top: 0;
+    .subtitle {
+      text-align: center;
+      color: #777;
+      font-size: 14px;
+      margin-bottom: 30px;
     }
 
-    p {
-      color: #666;
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 7px;
+      color: #333;
     }
 
-    .btn {
-      display: inline-block;
-      padding: 12px 25px;
+    input {
+      width: 100%;
+      padding: 13px 14px;
+      border: 1px solid #ddd;
+      border-radius: 9px;
+      font-size: 15px;
+      outline: none;
+      margin-bottom: 18px;
+    }
+
+    input:focus {
+      border-color: #555;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border: 0;
+      border-radius: 9px;
       background: #222;
       color: white;
-      text-decoration: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #000;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .message {
+      margin-top: 16px;
+      padding: 11px;
       border-radius: 8px;
-      margin-top: 15px;
+      text-align: center;
+      font-size: 14px;
+      display: none;
+    }
+
+    .error {
+      display: block;
+      background: #fff0f0;
+      color: #c62828;
+    }
+
+    .success {
+      display: block;
+      background: #eef8f0;
+      color: #2e7d32;
+    }
+
+    @media (max-width: 480px) {
+      .login-box {
+        padding: 28px 22px;
+      }
+
+      .logo {
+        font-size: 25px;
+      }
     }
   </style>
 </head>
 
 <body>
 
-  <div class="container">
+  <div class="login-box">
 
-    <div class="card">
-
-      <h1>Learning Center</h1>
-
-      <p>
-        Website pembelajaran dengan akses khusus.
-      </p>
-
-      <a href="#" class="btn">
-        Login
-      </a>
-
+    <div class="logo">
+      Learning Center
     </div>
 
+    <div class="subtitle">
+      Silakan login untuk melanjutkan pembelajaran
+    </div>
+
+    <form id="loginForm">
+
+      <label for="username">
+        Username
+      </label>
+
+      <input
+        type="text"
+        id="username"
+        name="username"
+        placeholder="Masukkan username"
+        autocomplete="username"
+        required
+      >
+
+      <label for="password">
+        Password
+      </label>
+
+      <input
+        type="password"
+        id="password"
+        name="password"
+        placeholder="Masukkan password"
+        autocomplete="current-password"
+        required
+      >
+
+      <button
+        type="submit"
+        id="loginButton"
+      >
+        LOGIN
+      </button>
+
+    </form>
+
+    <div id="message" class="message"></div>
+
   </div>
+
+  <script>
+    const form = document.getElementById("loginForm");
+    const button = document.getElementById("loginButton");
+    const message = document.getElementById("message");
+
+    function showMessage(text, type) {
+      message.textContent = text;
+      message.className = "message " + type;
+    }
+
+    form.addEventListener("submit", async function(event) {
+      event.preventDefault();
+
+      const username =
+        document.getElementById("username").value.trim();
+
+      const password =
+        document.getElementById("password").value;
+
+      button.disabled = true;
+      button.textContent = "MEMPROSES...";
+
+      message.className = "message";
+      message.textContent = "";
+
+      try {
+        const response = await fetch("/api/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            username,
+            password
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          showMessage(
+            data.message || "Login gagal.",
+            "error"
+          );
+
+          button.disabled = false;
+          button.textContent = "LOGIN";
+          return;
+        }
+
+        showMessage(
+          "Login berhasil. Mengalihkan...",
+          "success"
+        );
+
+        setTimeout(() => {
+
+          if (data.user.role === "admin") {
+            window.location.href = "/admin.html";
+          } else {
+            window.location.href = "/dashboard.html";
+          }
+
+        }, 500);
+
+      } catch (error) {
+
+        showMessage(
+          "Tidak dapat terhubung ke server.",
+          "error"
+        );
+
+        button.disabled = false;
+        button.textContent = "LOGIN";
+      }
+    });
+  </script>
 
 </body>
 </html>
