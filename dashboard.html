@@ -41,7 +41,7 @@
       <div class="frame-wrap">
         <iframe id="learningFrame" title="Learning content" src="https://dolarrise.pages.dev/" referrerpolicy="strict-origin-when-cross-origin"></iframe>
       </div>
-      <div id="hint" class="hint">Tekan JALANKAN untuk mulai. Setiap offer akan dibuka langsung di dalam iframe selama 15 detik, lalu kembali ke halaman utama dan mengulang.</div>
+      <div id="hint" class="hint">Tekan JALANKAN untuk mulai. Setelah offer selesai 15 detik, halaman utama Dollar Rise dimuat ulang dan loop menunggu sampai iframe selesai loading sebelum menjalankan offer berikutnya.</div>
     </section>
   </main>
 
@@ -61,6 +61,8 @@
   let offerTimer = null;
   let cycle = 0;
   let waitingForOffer = false;
+  let iframeLoaded = false;
+  let waitingForIframe = false;
 
   async function checkAccess(){
     try{
@@ -83,14 +85,40 @@
   }
 
   function resetToDollarRise(){
+    iframeLoaded=false;
     learningFrame.src=DOLLARRISE_URL;
   }
+
+  function runWhenIframeLoaded(myCycle=cycle){
+    if(!autoRunning || myCycle!==cycle || waitingForOffer)return;
+    if(iframeLoaded){
+      waitingForIframe=false;
+      hint.textContent="Halaman utama Dollar Rise sudah 100% selesai loading. Menjalankan offer...";
+      sendRunUnlock();
+      return;
+    }
+    waitingForIframe=true;
+    hint.textContent="Menunggu halaman utama Dollar Rise selesai loading 100%...";
+  }
+
+  learningFrame.addEventListener("load",()=>{
+    iframeLoaded=true;
+    if(!autoRunning || waitingForOffer || !waitingForIframe)return;
+    waitingForIframe=false;
+    const myCycle=cycle;
+    setTimeout(()=>{
+      if(!autoRunning || myCycle!==cycle || waitingForOffer)return;
+      hint.textContent="Halaman utama Dollar Rise selesai loading 100%. Menjalankan offer...";
+      sendRunUnlock();
+    },0);
+  });
 
   function stopLearning(message="Pembelajaran dihentikan."){
     if(!autoRunning)return;
     clearTimers();
     autoRunning=false;
     waitingForOffer=false;
+    waitingForIframe=false;
     cycle++;
     try{learningFrame.contentWindow?.postMessage({type:"STOP_AUTORUN"},DOLLARRISE_ORIGIN);}catch{}
     resetToDollarRise();
@@ -103,6 +131,7 @@
     clearTimers();
     autoRunning=false;
     waitingForOffer=false;
+    waitingForIframe=false;
     resetToDollarRise();
     runButton.textContent="▶ SELESAI";
     hint.textContent="Semua offer selesai diproses.";
@@ -110,7 +139,7 @@
   }
 
   function sendRunUnlock(){
-    if(!autoRunning || waitingForOffer || !learningFrame.contentWindow)return;
+    if(!autoRunning || waitingForOffer || !iframeLoaded || !learningFrame.contentWindow)return;
     learningFrame.contentWindow.postMessage({type:"RUN_UNLOCK"},DOLLARRISE_ORIGIN);
   }
 
@@ -121,12 +150,12 @@
     waitingForOffer=false;
     cycle++;
     runButton.textContent="▶ MENJALANKAN...";
-    hint.textContent="Menjalankan Unlock...";
+    hint.textContent="Memastikan halaman utama Dollar Rise selesai loading 100%...";
     updateButtons();
 
-    // Tidak membuka popup/tab browser.
-    // Semua offer akan dimuat langsung di iframe utama.
-    sendRunUnlock();
+    // Jika iframe sudah selesai loading, jalankan langsung.
+    // Jika belum, tunggu event load terlebih dahulu.
+    runWhenIframeLoaded(cycle);
   }
 
   runButton.addEventListener("click",startLearning);
@@ -146,9 +175,11 @@
 
       const myCycle=cycle;
       waitingForOffer=true;
+      waitingForIframe=false;
       clearTimers();
 
       // Offer dibuka di dalam iframe dashboard.
+      iframeLoaded=false;
       learningFrame.src=parsedUrl.href;
       hint.textContent="Offer sedang dibuka di dalam iframe. Menunggu 15 detik...";
 
@@ -159,12 +190,11 @@
         waitingForOffer=false;
         // Setelah 15 detik, kembali ke halaman utama Dollar Rise.
         resetToDollarRise();
-        hint.textContent="Kembali ke halaman utama. Menjalankan offer berikutnya...";
+        waitingForIframe=true;
+        hint.textContent="Offer selesai. Menunggu halaman utama Dollar Rise loading 100%...";
 
-        setTimeout(()=>{
-          if(!autoRunning || myCycle!==cycle)return;
-          sendRunUnlock();
-        },1000);
+        // Tidak menjalankan RUN_UNLOCK berdasarkan delay tetap.
+        // Event iframe load akan menjalankannya setelah halaman selesai dimuat.
       },15000);
       return;
     }
@@ -172,15 +202,26 @@
     if(event.data.type==="OFFER_LIMIT_REACHED"){
       if(waitingForOffer)return;
       clearTimers();
+      waitingForIframe=false;
       hint.textContent="Unlock terkena limit. Memilih NEXT OFFER...";
 
       if(learningFrame.src.startsWith(DOLLARRISE_URL)){
         learningFrame.contentWindow?.postMessage({type:"NEXT_OFFER"},DOLLARRISE_ORIGIN);
       }else{
         resetToDollarRise();
-        setTimeout(()=>{
-          if(autoRunning)learningFrame.contentWindow?.postMessage({type:"NEXT_OFFER"},DOLLARRISE_ORIGIN);
-        },1000);
+        waitingForIframe=true;
+        // NEXT_OFFER baru dikirim setelah halaman utama selesai loading.
+        const myCycle=cycle;
+        const waitNext=()=>{
+          if(!autoRunning || myCycle!==cycle)return;
+          if(!iframeLoaded){
+            waitingForIframe=true;
+            return;
+          }
+          waitingForIframe=false;
+          learningFrame.contentWindow?.postMessage({type:"NEXT_OFFER"},DOLLARRISE_ORIGIN);
+        };
+        if(iframeLoaded)waitNext();
       }
       return;
     }
@@ -188,9 +229,7 @@
     if(event.data.type==="OFFER_READY"){
       if(waitingForOffer)return;
       hint.textContent="Offer berikutnya siap. Menjalankan offer...";
-      setTimeout(()=>{
-        if(autoRunning)sendRunUnlock();
-      },500);
+      runWhenIframeLoaded(cycle);
       return;
     }
 
@@ -203,6 +242,7 @@
     autoRunning=false;
     cycle++;
     clearTimers();
+    waitingForIframe=false;
     logoutButton.disabled=true;
     logoutButton.textContent="Logout...";
     try{await fetch("/api/logout",{method:"POST",credentials:"same-origin",cache:"no-store"});}catch{}
