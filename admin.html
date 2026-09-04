@@ -25,7 +25,7 @@
     }
 
     .header-inner {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: auto;
       display: flex;
       align-items: center;
@@ -58,7 +58,7 @@
     }
 
     main {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 25px auto;
       padding: 0 20px 40px;
     }
@@ -103,6 +103,10 @@
       border-color: #555;
     }
 
+    button {
+      font-family: inherit;
+    }
+
     .add-button {
       padding: 11px 18px;
       border: 0;
@@ -145,7 +149,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 650px;
+      min-width: 850px;
     }
 
     th,
@@ -154,6 +158,7 @@
       border-bottom: 1px solid #eee;
       text-align: left;
       font-size: 14px;
+      vertical-align: middle;
     }
 
     th {
@@ -185,13 +190,71 @@
       font-weight: 600;
     }
 
+    .actions {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+
+    .action-button {
+      border: 0;
+      border-radius: 7px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .toggle-button {
+      background: #eee;
+      color: #333;
+    }
+
+    .delete-button {
+      background: #fff0f0;
+      color: #b42318;
+    }
+
+    .action-button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
     .empty {
       text-align: center;
       padding: 25px;
       color: #777;
     }
 
+    .summary {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .summary-box {
+      flex: 1;
+      min-width: 150px;
+      background: white;
+      padding: 17px;
+      border-radius: 12px;
+      box-shadow: 0 5px 20px rgba(0,0,0,.05);
+    }
+
+    .summary-label {
+      font-size: 12px;
+      color: #777;
+      margin-bottom: 7px;
+    }
+
+    .summary-number {
+      font-size: 25px;
+      font-weight: 700;
+    }
+
     @media (max-width: 800px) {
+
       .form-grid {
         grid-template-columns: 1fr 1fr;
       }
@@ -202,6 +265,7 @@
     }
 
     @media (max-width: 520px) {
+
       header {
         padding: 15px;
       }
@@ -226,6 +290,15 @@
 
       .form-grid {
         grid-template-columns: 1fr;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .summary-box {
+        min-width: 0;
       }
     }
   </style>
@@ -256,7 +329,53 @@
   </div>
 </header>
 
+
 <main>
+
+  <!-- RINGKASAN -->
+  <div class="summary">
+
+    <div class="summary-box">
+      <div class="summary-label">
+        Total Pengguna
+      </div>
+
+      <div
+        class="summary-number"
+        id="totalUsers"
+      >
+        0
+      </div>
+    </div>
+
+    <div class="summary-box">
+      <div class="summary-label">
+        Pengguna Aktif
+      </div>
+
+      <div
+        class="summary-number"
+        id="activeUsers"
+      >
+        0
+      </div>
+    </div>
+
+    <div class="summary-box">
+      <div class="summary-label">
+        Pengguna Nonaktif
+      </div>
+
+      <div
+        class="summary-number"
+        id="inactiveUsers"
+      >
+        0
+      </div>
+    </div>
+
+  </div>
+
 
   <!-- TAMBAH USER -->
   <section class="card">
@@ -340,6 +459,7 @@
       <table>
 
         <thead>
+
           <tr>
             <th>ID</th>
             <th>Nama</th>
@@ -347,13 +467,18 @@
             <th>Role</th>
             <th>Status</th>
             <th>Dibuat</th>
+            <th>Aksi</th>
           </tr>
+
         </thead>
 
         <tbody id="usersBody">
 
           <tr>
-            <td colspan="6" class="empty">
+            <td
+              colspan="7"
+              class="empty"
+            >
               Memuat data...
             </td>
           </tr>
@@ -388,6 +513,15 @@
 
   const logoutButton =
     document.getElementById("logoutButton");
+
+  const totalUsers =
+    document.getElementById("totalUsers");
+
+  const activeUsers =
+    document.getElementById("activeUsers");
+
+  const inactiveUsers =
+    document.getElementById("inactiveUsers");
 
 
   function showMessage(text, type) {
@@ -452,7 +586,7 @@
 
     usersBody.innerHTML = `
       <tr>
-        <td colspan="6" class="empty">
+        <td colspan="7" class="empty">
           Memuat data...
         </td>
       </tr>
@@ -475,9 +609,10 @@
 
         usersBody.innerHTML = `
           <tr>
-            <td colspan="6" class="empty">
+            <td colspan="7" class="empty">
               ${escapeHtml(
-                data.message || "Gagal memuat data."
+                data.message ||
+                "Gagal memuat data."
               )}
             </td>
           </tr>
@@ -486,11 +621,35 @@
         return;
       }
 
-      if (!data.users.length) {
+      const users =
+        Array.isArray(data.users)
+          ? data.users
+          : [];
+
+      const userOnly =
+        users.filter(
+          user => user.role === "user"
+        );
+
+      totalUsers.textContent =
+        userOnly.length;
+
+      activeUsers.textContent =
+        userOnly.filter(
+          user => Number(user.active) === 1
+        ).length;
+
+      inactiveUsers.textContent =
+        userOnly.filter(
+          user => Number(user.active) === 0
+        ).length;
+
+
+      if (!users.length) {
 
         usersBody.innerHTML = `
           <tr>
-            <td colspan="6" class="empty">
+            <td colspan="7" class="empty">
               Belum ada pengguna.
             </td>
           </tr>
@@ -499,11 +658,18 @@
         return;
       }
 
+
       usersBody.innerHTML =
-        data.users.map(user => {
+        users.map(user => {
+
+          const isAdmin =
+            user.role === "admin";
+
+          const isActive =
+            Number(user.active) === 1;
 
           const status =
-            Number(user.active) === 1
+            isActive
               ? `
                 <span class="status active">
                   Aktif
@@ -515,9 +681,55 @@
                 </span>
               `;
 
+
+          let actions = "";
+
+          if (!isAdmin) {
+
+            actions = `
+              <div class="actions">
+
+                <button
+                  class="action-button toggle-button"
+                  onclick="toggleUser(
+                    ${Number(user.id)},
+                    ${isActive ? 0 : 1}
+                  )"
+                >
+                  ${isActive
+                    ? "Nonaktifkan"
+                    : "Aktifkan"}
+                </button>
+
+                <button
+                  class="action-button delete-button"
+                  onclick="deleteUser(
+                    ${Number(user.id)},
+                    '${escapeHtml(user.name)}'
+                  )"
+                >
+                  Hapus
+                </button>
+
+              </div>
+            `;
+
+          } else {
+
+            actions = `
+              <span class="role">
+                Akun Admin
+              </span>
+            `;
+          }
+
+
           return `
             <tr>
-              <td>${escapeHtml(user.id)}</td>
+
+              <td>
+                ${escapeHtml(user.id)}
+              </td>
 
               <td>
                 ${escapeHtml(user.name)}
@@ -538,24 +750,150 @@
               </td>
 
               <td>
-                ${escapeHtml(
-                  user.created_at
-                )}
+                ${escapeHtml(user.created_at)}
               </td>
+
+              <td>
+                ${actions}
+              </td>
+
             </tr>
           `;
 
         }).join("");
 
+
     } catch (error) {
 
       usersBody.innerHTML = `
         <tr>
-          <td colspan="6" class="empty">
+          <td colspan="7" class="empty">
             Tidak dapat terhubung ke server.
           </td>
         </tr>
       `;
+    }
+  }
+
+
+  async function toggleUser(id, active) {
+
+    const action =
+      active === 1
+        ? "mengaktifkan"
+        : "menonaktifkan";
+
+    const confirmed =
+      confirm(
+        `Yakin ingin ${action} pengguna ini?`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+
+      const response =
+        await fetch("/api/admin/user", {
+
+          method: "PATCH",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          credentials: "same-origin",
+
+          body: JSON.stringify({
+            id,
+            active
+          })
+
+        });
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data.success
+      ) {
+
+        alert(
+          data.message ||
+          "Gagal mengubah status."
+        );
+
+        return;
+      }
+
+      await loadUsers();
+
+    } catch (error) {
+
+      alert(
+        "Tidak dapat terhubung ke server."
+      );
+    }
+  }
+
+
+  async function deleteUser(id, name) {
+
+    const confirmed =
+      confirm(
+        `Yakin ingin menghapus pengguna "${name}"?\n\nData pengguna akan dihapus dan tidak dapat dikembalikan.`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+
+      const response =
+        await fetch("/api/admin/user", {
+
+          method: "DELETE",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          credentials: "same-origin",
+
+          body: JSON.stringify({
+            id
+          })
+
+        });
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data.success
+      ) {
+
+        alert(
+          data.message ||
+          "Gagal menghapus pengguna."
+        );
+
+        return;
+      }
+
+      await loadUsers();
+
+    } catch (error) {
+
+      alert(
+        "Tidak dapat terhubung ke server."
+      );
     }
   }
 
@@ -578,36 +916,46 @@
         document.getElementById("password")
           .value;
 
-      addButton.disabled = true;
-      addButton.textContent = "Menyimpan...";
 
-      formMessage.className = "message";
+      addButton.disabled = true;
+      addButton.textContent =
+        "Menyimpan...";
+
+      formMessage.className =
+        "message";
+
       formMessage.textContent = "";
+
 
       try {
 
         const response =
-          await fetch("/api/admin/users", {
+          await fetch(
+            "/api/admin/users",
+            {
 
-            method: "POST",
+              method: "POST",
 
-            headers: {
-              "Content-Type":
-                "application/json"
-            },
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
 
-            credentials: "same-origin",
+              credentials:
+                "same-origin",
 
-            body: JSON.stringify({
-              name,
-              username,
-              password
-            })
+              body: JSON.stringify({
+                name,
+                username,
+                password
+              })
 
-          });
+            }
+          );
 
         const data =
           await response.json();
+
 
         if (
           !response.ok ||
@@ -632,6 +980,7 @@
           await loadUsers();
         }
 
+
       } catch (error) {
 
         showMessage(
@@ -642,7 +991,8 @@
       } finally {
 
         addButton.disabled = false;
-        addButton.textContent = "+ Tambah";
+        addButton.textContent =
+          "+ Tambah";
       }
     }
   );
@@ -664,7 +1014,7 @@
         });
 
       } catch (error) {
-        // Tetap arahkan ke login
+        // Tetap kembali ke login
       }
 
       window.location.href = "/";
