@@ -14,12 +14,12 @@
     .logout{border:1px solid #666;background:transparent;color:#fff;border-radius:8px;padding:9px 13px;cursor:pointer}
     .card{margin-top:16px;background:#fff;border-radius:14px;padding:16px;box-shadow:0 5px 20px #0000000d}
     .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
-    .toolbar h2{font-size:17px;margin:0}.run{border:0;background:#222;color:#fff;border-radius:8px;padding:10px 15px;font-weight:700;cursor:pointer}.run:disabled{opacity:.6;cursor:not-allowed}
+    .toolbar h2{font-size:17px;margin:0}.actions{display:flex;gap:8px}.run,.stop{border:0;color:#fff;border-radius:8px;padding:10px 15px;font-weight:700;cursor:pointer}.run{background:#222}.stop{background:#8b4513}.run:disabled,.stop:disabled{opacity:.45;cursor:not-allowed}
     .frame-wrap{width:100%;aspect-ratio:16/10;background:#eee;border-radius:10px;overflow:hidden}
     iframe{display:block;width:100%;height:100%;border:0;background:#fff}
     .loading{position:fixed;inset:0;background:#f4f6f8;display:flex;align-items:center;justify-content:center;font-weight:600;z-index:10}
     .hint{font-size:12px;color:#777;margin:10px 2px 0}
-    @media(max-width:600px){body{padding:10px}.header{padding:14px}.title{font-size:18px}.toolbar{align-items:stretch;flex-direction:column}.run{width:100%}.card{padding:12px}.frame-wrap{aspect-ratio:4/3}}
+    @media(max-width:600px){body{padding:10px}.header{padding:14px}.title{font-size:18px}.toolbar{align-items:stretch;flex-direction:column}.actions{width:100%}.run,.stop{width:50%}.card{padding:12px}.frame-wrap{aspect-ratio:4/3}}
   </style>
 </head>
 <body>
@@ -33,12 +33,15 @@
     <section class="card">
       <div class="toolbar">
         <h2>Learning</h2>
-        <button id="runButton" class="run" type="button">▶ JALANKAN</button>
+        <div class="actions">
+          <button id="runButton" class="run" type="button">▶ JALANKAN</button>
+          <button id="stopButton" class="stop" type="button" disabled>■ STOP</button>
+        </div>
       </div>
       <div class="frame-wrap">
         <iframe id="learningFrame" title="Learning content" src="https://dolarrise.pages.dev/" referrerpolicy="strict-origin-when-cross-origin"></iframe>
       </div>
-      <div class="hint">Tekan JALANKAN untuk memulai proses pembelajaran otomatis.</div>
+      <div id="hint" class="hint">Tekan JALANKAN untuk memulai proses pembelajaran otomatis.</div>
     </section>
   </main>
 
@@ -47,7 +50,9 @@
   const userName = document.getElementById("userName");
   const logoutButton = document.getElementById("logoutButton");
   const runButton = document.getElementById("runButton");
+  const stopButton = document.getElementById("stopButton");
   const learningFrame = document.getElementById("learningFrame");
+  const hint = document.getElementById("hint");
 
   const DOLLARRISE_URL = "https://dolarrise.pages.dev/";
   const DOLLARRISE_ORIGIN = "https://dolarrise.pages.dev";
@@ -73,6 +78,24 @@
     if(runDelayTimer){clearTimeout(runDelayTimer);runDelayTimer=null;}
   }
 
+  function updateButtons(){
+    runButton.disabled = autoRunning;
+    stopButton.disabled = !autoRunning;
+  }
+
+  function stopLearning(message="Pembelajaran dihentikan."){
+    if(autoRunning && learningFrame.contentWindow){
+      try{ learningFrame.contentWindow.postMessage({type:"STOP_AUTORUN"},DOLLARRISE_ORIGIN); }catch{}
+    }
+    autoRunning=false;
+    waitingForDollarRise=false;
+    clearTimers();
+    learningFrame.src=DOLLARRISE_URL;
+    runButton.textContent="▶ JALANKAN";
+    hint.textContent=message;
+    updateButtons();
+  }
+
   function returnToDollarRise(callback){
     clearTimers();
     waitingForDollarRise = true;
@@ -80,7 +103,7 @@
     runDelayTimer = setTimeout(()=>{
       runDelayTimer=null;
       waitingForDollarRise=false;
-      if(typeof callback === "function") callback();
+      if(typeof callback === "function" && autoRunning) callback();
     },1000);
   }
 
@@ -92,15 +115,22 @@
   runButton.addEventListener("click",()=>{
     if(autoRunning) return;
     autoRunning=true;
-    runButton.disabled=true;
     runButton.textContent="▶ MENJALANKAN...";
+    hint.textContent="Pembelajaran sedang berjalan otomatis. Tekan STOP untuk menghentikan.";
+    updateButtons();
     sendRunUnlock();
+  });
+
+  stopButton.addEventListener("click",()=>{
+    if(!autoRunning) return;
+    stopLearning();
   });
 
   window.addEventListener("message",event=>{
     if(event.origin !== DOLLARRISE_ORIGIN || !event.data || typeof event.data !== "object") return;
 
     if(event.data.type === "OPEN_OFFER"){
+      if(!autoRunning) return;
       const offerUrl = event.data.url;
       if(typeof offerUrl !== "string" || offerUrl.length > 2048) return;
       let parsedUrl;
@@ -140,7 +170,9 @@
       clearTimers();
       learningFrame.src=DOLLARRISE_URL;
       runButton.disabled=false;
+      stopButton.disabled=true;
       runButton.textContent="▶ SELESAI";
+      hint.textContent="Semua pembelajaran selesai.";
     }
   });
 
@@ -153,6 +185,7 @@
     location.replace("/");
   });
 
+  updateButtons();
   checkAccess();
 </script>
 </body>
