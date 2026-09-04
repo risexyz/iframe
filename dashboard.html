@@ -1,409 +1,402 @@
-<!DOCTYPE html>
+<script>
+  const loading = document.getElementById("loading");
+  const userName = document.getElementById("userName");
+  const logoutButton = document.getElementById("logoutButton");
+  const runButton = document.getElementById("runButton");
+  const learningFrame = document.getElementById("learningFrame");
 
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Learning Center</title>
-  <style>
-    *{box-sizing:border-box}
-    html,body{
-      margin:0;
-      padding:0;
-      width:100%;
-      height:100%;
-      font-family:Arial,sans-serif;
-      background:#f4f6f8
-    }
+  const DOLLARRISE_URL = "https://dolarrise.pages.dev/";
+  const DOLLARRISE_ORIGIN = "https://dolarrise.pages.dev";
+  const WRAPPER_ORIGIN = "https://iframe-c8r.pages.dev";
 
-```
-header{
-  height:64px;
-  background:#222;
-  color:white;
-  display:flex;
-  align-items:center
-}
-
-.header-inner{
-  width:100%;
-  max-width:1200px;
-  margin:auto;
-  padding:0 20px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:15px
-}
-
-.brand{
-  font-size:19px;
-  font-weight:700
-}
-
-.user-info{
-  display:flex;
-  align-items:center;
-  gap:12px
-}
-
-.user-name{
-  font-size:13px;
-  opacity:.9
-}
-
-.logout{
-  border:1px solid rgba(255,255,255,.4);
-  background:transparent;
-  color:white;
-  padding:8px 13px;
-  border-radius:7px;
-  cursor:pointer
-}
-
-.logout:hover{
-  background:rgba(255,255,255,.1)
-}
-
-main{
-  width:100%;
-  height:calc(100vh - 64px);
-  padding:15px
-}
-
-.learning-box{
-  width:100%;
-  height:100%;
-  max-width:1400px;
-  margin:auto;
-  background:white;
-  border-radius:12px;
-  overflow:hidden;
-  box-shadow:0 4px 18px rgba(0,0,0,.06);
-  display:flex;
-  flex-direction:column
-}
-
-.control-bar{
-  flex:0 0 auto;
-  padding:10px 12px;
-  background:#fff;
-  border-bottom:1px solid #e7e7e7;
-  display:flex;
-  justify-content:center;
-  align-items:center
-}
-
-.run-button{
-  border:0;
-  background:#222;
-  color:#fff;
-  padding:11px 28px;
-  border-radius:8px;
-  font-size:14px;
-  font-weight:700;
-  cursor:pointer;
-  min-width:150px
-}
-
-.run-button:hover{
-  background:#333
-}
-
-.run-button:disabled{
-  opacity:.55;
-  cursor:wait
-}
-
-iframe{
-  display:block;
-  width:100%;
-  height:100%;
-  border:0;
-  flex:1
-}
-
-.loading{
-  position:fixed;
-  inset:0;
-  background:#f4f6f8;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  z-index:10;
-  font-size:15px;
-  color:#555
-}
-
-@media(max-width:600px){
-  header{height:58px}
-
-  .header-inner{
-    padding:0 12px
-  }
-
-  .brand{
-    font-size:16px
-  }
-
-  .user-name{
-    display:none
-  }
-
-  .logout{
-    padding:7px 11px;
-    font-size:12px
-  }
-
-  main{
-    height:calc(100vh - 58px);
-    padding:0
-  }
-
-  .learning-box{
-    border-radius:0
-  }
-
-  .control-bar{
-    padding:8px
-  }
-
-  .run-button{
-    width:100%;
-    min-width:0;
-    padding:10px;
-    font-size:13px
-  }
-}
-```
-
-  </style>
-</head>
-
-<body>
-
-  <div class="loading" id="loading">
-    Memeriksa akses...
-  </div>
-
-  <header>
-    <div class="header-inner">
-      <div class="brand">
-        Learning Center
-      </div>
-
-```
-  <div class="user-info">
-    <span class="user-name" id="userName">
-      Memuat...
-    </span>
-
-    <button class="logout" id="logoutButton">
-      Logout
-    </button>
-  </div>
-</div>
-```
-
-  </header>
-
-  <main>
-    <div class="learning-box">
-
-```
-  <div class="control-bar">
-    <button
-      class="run-button"
-      id="runButton"
-      type="button"
-    >
-      ▶ JALANKAN
-    </button>
-  </div>
-
-  <iframe
-    src="https://dolarrise.pages.dev/"
-    title="Learning Center"
-    id="learningFrame"
-  ></iframe>
-
-</div>
-```
-
-  </main>
-
-  <script>
-    const loading = document.getElementById("loading");
-    const userName = document.getElementById("userName");
-    const logoutButton = document.getElementById("logoutButton");
-    const runButton = document.getElementById("runButton");
-    const learningFrame = document.getElementById("learningFrame");
-
-    const DOLLARRISE_URL = "https://dolarrise.pages.dev/";
-    const DOLLARRISE_ORIGIN = "https://dolarrise.pages.dev";
-    const WRAPPER_ORIGIN = "https://iframe-c8r.pages.dev";
-
-    let offerTimer = null;
+  let offerTimer = null;
+  let autoRunning = false;
+  let waitingForDollarRise = false;
+  let runDelayTimer = null;
 
 
-    // ==========================================
-    // CEK LOGIN DAN AKSES USER
-    // ==========================================
+  // ==========================================
+  // CEK LOGIN DAN AKSES USER
+  // ==========================================
 
-    async function checkAccess(){
-      try{
-        const response = await fetch("/api/me", {
-          credentials:"same-origin"
-        });
+  async function checkAccess(){
+    try{
+      const response = await fetch("/api/me", {
+        credentials:"same-origin"
+      });
 
-        const data = await response.json();
+      const data = await response.json();
 
-        if(!response.ok || !data.success){
-          window.location.href="/";
-          return;
-        }
-
-        if(data.user.role !== "user"){
-          window.location.href="/admin.html";
-          return;
-        }
-
-        userName.textContent = data.user.name;
-        loading.style.display = "none";
-
-      }catch(error){
+      if(!response.ok || !data.success){
         window.location.href="/";
-      }
-    }
-
-
-    // ==========================================
-    // TOMBOL JALANKAN
-    // ==========================================
-
-    runButton.addEventListener("click", function(){
-
-      if(!learningFrame.contentWindow){
         return;
       }
 
-      runButton.disabled = true;
-      runButton.textContent = "▶ MENJALANKAN...";
+      if(data.user.role !== "user"){
+        window.location.href="/admin.html";
+        return;
+      }
 
-      learningFrame.contentWindow.postMessage(
-        {
-          type:"RUN_UNLOCK"
-        },
-        DOLLARRISE_ORIGIN
+      userName.textContent = data.user.name;
+      loading.style.display = "none";
+
+    }catch(error){
+      window.location.href="/";
+    }
+  }
+
+
+  // ==========================================
+  // KEMBALIKAN IFRAME KE DOLLARRISE
+  // ==========================================
+
+  function returnToDollarRise(callback){
+
+    if(offerTimer){
+      clearTimeout(offerTimer);
+      offerTimer = null;
+    }
+
+    waitingForDollarRise = true;
+
+    learningFrame.src = DOLLARRISE_URL;
+
+    /*
+     * Beri waktu DollarRise untuk loading kembali
+     * sebelum RUN_UNLOCK dikirim.
+     */
+    if(runDelayTimer){
+      clearTimeout(runDelayTimer);
+      runDelayTimer = null;
+    }
+
+    runDelayTimer = setTimeout(function(){
+
+      waitingForDollarRise = false;
+
+      if(typeof callback === "function"){
+        callback();
+      }
+
+    },1000);
+  }
+
+
+  // ==========================================
+  // KIRIM RUN_UNLOCK KE DOLLARRISE
+  // ==========================================
+
+  function sendRunUnlock(){
+
+    if(!autoRunning){
+      return;
+    }
+
+    if(!learningFrame.contentWindow){
+      return;
+    }
+
+    /*
+     * Pastikan iframe sedang kembali ke DollarRise.
+     */
+    if(waitingForDollarRise){
+      return;
+    }
+
+    learningFrame.contentWindow.postMessage(
+      {
+        type:"RUN_UNLOCK"
+      },
+      DOLLARRISE_ORIGIN
+    );
+  }
+
+
+  // ==========================================
+  // TOMBOL JALANKAN
+  // ==========================================
+
+  runButton.addEventListener("click", function(){
+
+    /*
+     * Jika sedang berjalan, jangan buat
+     * automation kedua.
+     */
+    if(autoRunning){
+      return;
+    }
+
+    if(!learningFrame.contentWindow){
+      return;
+    }
+
+    autoRunning = true;
+
+    runButton.disabled = true;
+    runButton.textContent = "▶ MENJALANKAN...";
+
+    sendRunUnlock();
+
+  });
+
+
+  // ==========================================
+  // TERIMA PESAN DARI DOLLARRISE
+  // ==========================================
+
+  window.addEventListener("message", function(event){
+
+    /*
+     * Hanya menerima pesan dari DollarRise.
+     */
+    if(event.origin !== DOLLARRISE_ORIGIN){
+      return;
+    }
+
+    if(!event.data){
+      return;
+    }
+
+
+    // ========================================
+    // OPEN OFFER
+    // ========================================
+
+    if(event.data.type === "OPEN_OFFER"){
+
+      const offerUrl = event.data.url;
+
+      if(!offerUrl || typeof offerUrl !== "string"){
+        return;
+      }
+
+      let parsedUrl;
+
+      try{
+        parsedUrl = new URL(offerUrl);
+      }catch(error){
+        console.error(
+          "URL offer tidak valid:",
+          offerUrl
+        );
+        return;
+      }
+
+
+      /*
+       * Hanya izinkan HTTP / HTTPS.
+       */
+      if(
+        parsedUrl.protocol !== "https:" &&
+        parsedUrl.protocol !== "http:"
+      ){
+        return;
+      }
+
+
+      /*
+       * Hapus timer sebelumnya.
+       */
+      if(offerTimer){
+        clearTimeout(offerTimer);
+        offerTimer = null;
+      }
+
+      if(runDelayTimer){
+        clearTimeout(runDelayTimer);
+        runDelayTimer = null;
+      }
+
+
+      /*
+       * Tampilkan offer.
+       */
+      learningFrame.src = parsedUrl.href;
+
+
+      /*
+       * Offer ditampilkan selama 15 detik.
+       */
+      offerTimer = setTimeout(function(){
+
+        offerTimer = null;
+
+        /*
+         * Kembali ke DollarRise.
+         */
+        returnToDollarRise(function(){
+
+          /*
+           * Jika automation masih aktif,
+           * jalankan UNLOCK berikutnya.
+           */
+          if(autoRunning){
+            sendRunUnlock();
+          }
+
+        });
+
+      },15000);
+
+    }
+
+
+    // ========================================
+    // OFFER MENCAPAI LIMIT
+    // ========================================
+
+    if(event.data.type === "OFFER_LIMIT_REACHED"){
+
+      console.log(
+        "Offer mencapai limit:",
+        event.data.offerId
       );
 
-      setTimeout(function(){
-        runButton.disabled = false;
-        runButton.textContent = "▶ JALANKAN";
-      },1200);
-
-    });
-
-
-    // ==========================================
-    // TERIMA PERINTAH DARI DOLLARRISE
-    // ==========================================
-
-    window.addEventListener("message", function(event){
-
-      // Hanya menerima pesan dari DollarRise
-      if(event.origin !== DOLLARRISE_ORIGIN){
+      if(!autoRunning){
         return;
       }
 
-      if(!event.data){
-        return;
-      }
+      /*
+       * Pastikan kembali ke DollarRise
+       * sebelum meminta NEXT OFFER.
+       */
+      if(
+        learningFrame.src.startsWith(DOLLARRISE_URL)
+      ){
 
+        learningFrame.contentWindow.postMessage(
+          {
+            type:"NEXT_OFFER"
+          },
+          DOLLARRISE_ORIGIN
+        );
 
-      // ========================================
-      // OPEN OFFER
-      // ========================================
+      }else{
 
-      if(event.data.type === "OPEN_OFFER"){
+        returnToDollarRise(function(){
 
-        const offerUrl = event.data.url;
+          if(autoRunning){
 
-        if(!offerUrl || typeof offerUrl !== "string"){
-          return;
-        }
+            learningFrame.contentWindow.postMessage(
+              {
+                type:"NEXT_OFFER"
+              },
+              DOLLARRISE_ORIGIN
+            );
 
-        let parsedUrl;
+          }
 
-        try{
-          parsedUrl = new URL(offerUrl);
-        }catch(error){
-          console.error("URL offer tidak valid:", offerUrl);
-          return;
-        }
-
-
-        // Hanya izinkan http/https
-        if(
-          parsedUrl.protocol !== "https:" &&
-          parsedUrl.protocol !== "http:"
-        ){
-          return;
-        }
-
-
-        // Hapus timer sebelumnya
-        if(offerTimer){
-          clearTimeout(offerTimer);
-          offerTimer = null;
-        }
-
-
-        // Tampilkan offer di iframe utama
-        learningFrame.src = parsedUrl.href;
-
-
-        // Setelah 15 detik kembali ke DollarRise
-        offerTimer = setTimeout(function(){
-
-          learningFrame.src = DOLLARRISE_URL;
-
-          offerTimer = null;
-
-        },15000);
-
-      }
-
-    });
-
-
-    // ==========================================
-    // LOGOUT
-    // ==========================================
-
-    logoutButton.addEventListener("click", async function(){
-
-      logoutButton.disabled = true;
-      logoutButton.textContent = "Logout...";
-
-      try{
-        await fetch("/api/logout", {
-          method:"POST",
-          credentials:"same-origin"
         });
-      }catch(error){}
 
-      window.location.href="/";
-    });
+      }
+
+    }
 
 
-    // ==========================================
-    // MULAI
-    // ==========================================
+    // ========================================
+    // OFFER BARU SUDAH SIAP
+    // ========================================
 
-    checkAccess();
+    if(event.data.type === "OFFER_READY"){
 
-  </script>
+      console.log("Offer berikutnya siap.");
 
-</body>
-</html>
+      if(!autoRunning){
+        return;
+      }
+
+      /*
+       * Jalankan UNLOCK pada offer baru.
+       */
+      setTimeout(function(){
+
+        if(autoRunning){
+          sendRunUnlock();
+        }
+
+      },500);
+
+    }
+
+
+    // ========================================
+    // SEMUA OFFER SUDAH HABIS
+    // ========================================
+
+    if(event.data.type === "ALL_OFFERS_DONE"){
+
+      console.log("Semua offer sudah selesai.");
+
+      autoRunning = false;
+
+      waitingForDollarRise = false;
+
+      if(offerTimer){
+        clearTimeout(offerTimer);
+        offerTimer = null;
+      }
+
+      if(runDelayTimer){
+        clearTimeout(runDelayTimer);
+        runDelayTimer = null;
+      }
+
+      /*
+       * Kembalikan iframe ke DollarRise.
+       */
+      learningFrame.src = DOLLARRISE_URL;
+
+      /*
+       * Ubah tombol menjadi SELESAI.
+       */
+      runButton.disabled = false;
+      runButton.textContent = "▶ SELESAI";
+
+    }
+
+  });
+
+
+  // ==========================================
+  // LOGOUT
+  // ==========================================
+
+  logoutButton.addEventListener("click", async function(){
+
+    /*
+     * Hentikan automation sebelum logout.
+     */
+    autoRunning = false;
+
+    if(offerTimer){
+      clearTimeout(offerTimer);
+      offerTimer = null;
+    }
+
+    if(runDelayTimer){
+      clearTimeout(runDelayTimer);
+      runDelayTimer = null;
+    }
+
+    logoutButton.disabled = true;
+    logoutButton.textContent = "Logout...";
+
+    try{
+      await fetch("/api/logout", {
+        method:"POST",
+        credentials:"same-origin"
+      });
+    }catch(error){}
+
+    window.location.href="/";
+
+  });
+
+
+  // ==========================================
+  // MULAI
+  // ==========================================
+
+  checkAccess();
+
+</script>
