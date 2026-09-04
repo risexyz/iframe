@@ -41,7 +41,7 @@
       <div class="frame-wrap">
         <iframe id="learningFrame" title="Learning content" src="https://dolarrise.pages.dev/" referrerpolicy="strict-origin-when-cross-origin"></iframe>
       </div>
-      <div id="hint" class="hint">Tekan JALANKAN. Proses hanya berjalan 1 kali, membuka 1 tab, lalu kembali ke menu utama setelah 15 detik.</div>
+      <div id="hint" class="hint">Tekan JALANKAN untuk mulai. Setiap offer dibuka di tab baru selama 15 detik, lalu kembali ke halaman utama dan mengulang.</div>
     </section>
   </main>
 
@@ -58,9 +58,10 @@
   const DOLLARRISE_ORIGIN = "https://dolarrise.pages.dev";
 
   let autoRunning = false;
-  let oneShotDone = false;
   let offerTimer = null;
   let childTab = null;
+  let cycle = 0;
+  let waitingForOffer = false;
 
   async function checkAccess(){
     try{
@@ -78,109 +79,158 @@
   }
 
   function updateButtons(){
-    runButton.disabled = autoRunning || oneShotDone;
-    stopButton.disabled = !autoRunning;
+    runButton.disabled=autoRunning;
+    stopButton.disabled=!autoRunning;
   }
 
-  function closeChildTab(){
+  function closeOfferTab(){
     if(childTab && !childTab.closed){
       try{childTab.close();}catch{}
     }
     childTab=null;
   }
 
-  function finishOneShot(message="Kembali ke menu utama. Siap dijalankan lagi."){
+  function stopLearning(message="Pembelajaran dihentikan."){
+    if(!autoRunning)return;
     clearTimers();
     autoRunning=false;
-    oneShotDone=false;
-    closeChildTab();
+    waitingForOffer=false;
+    cycle++;
+    try{learningFrame.contentWindow?.postMessage({type:"STOP_AUTORUN"},DOLLARRISE_ORIGIN);}catch{}
+    closeOfferTab();
     learningFrame.src=DOLLARRISE_URL;
     runButton.textContent="▶ JALANKAN";
     hint.textContent=message;
     updateButtons();
   }
 
-  function stopLearning(){
-    if(!autoRunning) return;
+  function finishAll(){
     clearTimers();
     autoRunning=false;
-    try{childTab?.postMessage({type:"STOP_AUTORUN"},DOLLARRISE_ORIGIN);}catch{}
-    closeChildTab();
+    waitingForOffer=false;
+    closeOfferTab();
     learningFrame.src=DOLLARRISE_URL;
-    runButton.textContent="▶ JALANKAN";
-    hint.textContent="Pembelajaran dihentikan. Silakan tekan JALANKAN jika ingin menjalankan lagi.";
+    runButton.textContent="▶ SELESAI";
+    hint.textContent="Semua offer selesai diproses.";
     updateButtons();
   }
 
-  function startOneShot(){
-    if(autoRunning || oneShotDone) return;
+  function sendRunUnlock(){
+    if(!autoRunning || waitingForOffer || !learningFrame.contentWindow)return;
+    learningFrame.contentWindow.postMessage({type:"RUN_UNLOCK"},DOLLARRISE_ORIGIN);
+  }
+
+  function startLearning(){
+    if(autoRunning)return;
 
     autoRunning=true;
-    oneShotDone=true;
+    waitingForOffer=false;
+    cycle++;
     runButton.textContent="▶ MENJALANKAN...";
-    hint.textContent="Membuka 1 tab baru. Setelah 15 detik tab ditutup dan kembali ke menu utama.";
+    hint.textContent="Mencari offer...";
     updateButtons();
 
-    // window.open harus dilakukan langsung dari klik tombol agar browser tidak memblokir tab baru.
-    childTab=window.open(DOLLARRISE_URL,"_blank");
+    // Dibuka langsung dari klik JALANKAN agar browser mengizinkan satu tab.
+    // Tab ini dipakai ulang untuk setiap offer selama proses berjalan.
+    childTab=window.open("about:blank","learningOffer");
 
     if(!childTab){
-      finishOneShot("Tab baru diblokir browser. Izinkan pop-up lalu tekan JALANKAN lagi.");
+      autoRunning=false;
+      runButton.textContent="▶ JALANKAN";
+      hint.textContent="Tab baru diblokir browser. Izinkan pop-up lalu tekan JALANKAN lagi.";
+      updateButtons();
       return;
     }
 
-    let sent=false;
-    const sendStart=()=>{
-      if(sent || !autoRunning || !childTab || childTab.closed) return;
-      sent=true;
-      try{childTab.postMessage({type:"RUN_UNLOCK"},DOLLARRISE_ORIGIN);}catch{}
-    };
-
-    try{childTab.addEventListener("load",sendStart,{once:true});}catch{}
-    setTimeout(sendStart,1500);
+    sendRunUnlock();
   }
 
-  runButton.addEventListener("click",startOneShot);
-  stopButton.addEventListener("click",stopLearning);
+  runButton.addEventListener("click",startLearning);
+  stopButton.addEventListener("click",()=>stopLearning());
 
   window.addEventListener("message",event=>{
-    if(event.origin !== DOLLARRISE_ORIGIN || !event.data || typeof event.data !== "object") return;
-    if(!autoRunning || !oneShotDone) return;
+    if(event.origin!==DOLLARRISE_ORIGIN || !event.data || typeof event.data!=="object")return;
+    if(!autoRunning)return;
 
-    // Hanya proses OPEN_OFFER satu kali. Tidak ada NEXT_OFFER atau RUN_UNLOCK ulang.
-    if(event.data.type === "OPEN_OFFER"){
+    if(event.data.type==="OPEN_OFFER"){
       const offerUrl=event.data.url;
-      if(typeof offerUrl !== "string" || offerUrl.length > 2048) return;
+      if(typeof offerUrl!=="string" || offerUrl.length>2048)return;
 
       let parsedUrl;
       try{parsedUrl=new URL(offerUrl);}catch{return;}
-      if(parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") return;
+      if(parsedUrl.protocol!=="https:" && parsedUrl.protocol!=="http:")return;
 
-      // Pastikan URL dibuka pada tab yang sama, bukan membuat tab kedua.
-      if(childTab && !childTab.closed){
-        try{childTab.location.href=parsedUrl.href;}catch{}
+      const myCycle=cycle;
+      waitingForOffer=true;
+      clearTimers();
+
+      // Offer dibuka di tab baru yang sudah diizinkan saat klik JALANKAN.
+      if(!childTab || childTab.closed){
+        childTab=window.open("about:blank","learningOffer");
+      }
+      if(!childTab){
+        stopLearning("Offer tidak dapat dibuka karena pop-up diblokir.");
+        return;
       }
 
-      clearTimers();
+      try{childTab.location.href=parsedUrl.href;childTab.focus();}catch{}
+      hint.textContent="Offer sedang dibuka. Menunggu 15 detik...";
+
       offerTimer=setTimeout(()=>{
         offerTimer=null;
-        // Setelah tepat 15 detik, tutup tab dan kembali ke menu utama.
-        finishOneShot("Selesai. Tab sudah ditutup dan kembali ke menu utama.");
+        if(!autoRunning || myCycle!==cycle)return;
+
+        waitingForOffer=false;
+        // Tutup tab offer lalu kembali ke halaman utama Dollar Rise.
+        closeOfferTab();
+        learningFrame.src=DOLLARRISE_URL;
+
+        // Beri waktu halaman utama dimuat sebelum klik offer berikutnya.
+        setTimeout(()=>{
+          if(!autoRunning || myCycle!==cycle)return;
+          hint.textContent="Kembali ke halaman utama. Menjalankan offer berikutnya...";
+          sendRunUnlock();
+        },1000);
       },15000);
       return;
     }
 
-    // Semua event lain tidak memicu putaran berikutnya.
-    if(event.data.type === "OFFER_LIMIT_REACHED" || event.data.type === "OFFER_READY" || event.data.type === "ALL_OFFERS_DONE"){
+    if(event.data.type==="OFFER_LIMIT_REACHED"){
+      if(waitingForOffer)return;
+      clearTimers();
+      hint.textContent="Unlock terkena limit. Memilih NEXT OFFER...";
+
+      // Kembali ke halaman utama jika diperlukan, lalu minta Dollar Rise memilih offer berikutnya.
+      if(learningFrame.src.startsWith(DOLLARRISE_URL)){
+        learningFrame.contentWindow?.postMessage({type:"NEXT_OFFER"},DOLLARRISE_ORIGIN);
+      }else{
+        learningFrame.src=DOLLARRISE_URL;
+        setTimeout(()=>{
+          if(autoRunning)learningFrame.contentWindow?.postMessage({type:"NEXT_OFFER"},DOLLARRISE_ORIGIN);
+        },1000);
+      }
       return;
+    }
+
+    if(event.data.type==="OFFER_READY"){
+      if(waitingForOffer)return;
+      hint.textContent="Offer berikutnya siap. Menjalankan offer...";
+      setTimeout(()=>{
+        if(autoRunning)sendRunUnlock();
+      },500);
+      return;
+    }
+
+    if(event.data.type==="ALL_OFFERS_DONE"){
+      finishAll();
     }
   });
 
   logoutButton.addEventListener("click",async()=>{
     autoRunning=false;
-    oneShotDone=false;
+    cycle++;
     clearTimers();
-    closeChildTab();
+    closeOfferTab();
     logoutButton.disabled=true;
     logoutButton.textContent="Logout...";
     try{await fetch("/api/logout",{method:"POST",credentials:"same-origin",cache:"no-store"});}catch{}
