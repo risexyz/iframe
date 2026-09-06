@@ -16,7 +16,7 @@
     .actions{display:flex;gap:8px}.run,.stop{border:0;color:#fff;border-radius:8px;padding:10px 15px;font-weight:700;cursor:pointer}.run{background:#222}.stop{background:#8b4513}.run:disabled,.stop:disabled{opacity:.45;cursor:not-allowed}
     .hint{font-size:12px;color:#777;margin:0 2px 10px}
     .frame-wrap{width:100%;aspect-ratio:16/10;background:#eee;border-radius:10px;overflow:hidden}iframe{display:block;width:100%;height:100%;border:0;background:#fff}
-    .loading{position:fixed;inset:0;background:#f4f6f8;display:flex;align-items:center;justify-content:center;font-weight:600;z-index:10}
+    .loading{position:fixed;inset:0;background:#f4f6f8;display:flex;align-items:center;justify-content:center;font-weight:600}
     @media(max-width:600px){body{padding:10px}.header{padding:14px}.title{font-size:18px}.toolbar{align-items:stretch;flex-direction:column}.actions{width:100%}.run,.stop{width:50%}.card{padding:12px}.frame-wrap{aspect-ratio:4/3}}
   </style>
 </head>
@@ -33,10 +33,10 @@
 <script>
   const loading=document.getElementById("loading"),userName=document.getElementById("userName"),logoutButton=document.getElementById("logoutButton"),runButton=document.getElementById("runButton"),stopButton=document.getElementById("stopButton"),learningFrame=document.getElementById("learningFrame"),hint=document.getElementById("hint");
   const DOLLARRISE_URL="https://dolarrise.pages.dev/",DOLLARRISE_ORIGIN="https://dolarrise.pages.dev";
-  let autoRunning=false,offerTimer=null,mainLoadTimer=null,cycle=0,waitingForOffer=false,iframeLoaded=false,waitingForIframe=false,waitingForNextOffer=false;
+  let autoRunning=false,offerTimer=null,countdownTimer=null,mainLoadTimer=null,cycle=0,waitingForOffer=false,iframeLoaded=false,waitingForIframe=false,waitingForNextOffer=false;
 
   async function checkAccess(){try{const r=await fetch("/api/me",{credentials:"same-origin",cache:"no-store"}),d=await r.json();if(!r.ok||!d.success){location.replace("/");return}if(d.user.role!=="user"){location.replace("/admin.html");return}userName.textContent=d.user.name||d.user.username;loading.style.display="none"}catch{location.replace("/")}}
-  function clearTimers(){if(offerTimer){clearTimeout(offerTimer);offerTimer=null}if(mainLoadTimer){clearTimeout(mainLoadTimer);mainLoadTimer=null}}
+  function clearTimers(){if(offerTimer){clearTimeout(offerTimer);offerTimer=null}if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null}if(mainLoadTimer){clearTimeout(mainLoadTimer);mainLoadTimer=null}}
   function updateButtons(){runButton.disabled=autoRunning;stopButton.disabled=!autoRunning}
 
   function sendRunUnlock(){
@@ -106,8 +106,16 @@
       waitingForOffer=true;waitingForIframe=false;waitingForNextOffer=false;
       if(mainLoadTimer){clearTimeout(mainLoadTimer);mainLoadTimer=null}
       clearTimers();iframeLoaded=false;learningFrame.src=parsedUrl.href;
-      hint.textContent="Offer sedang dibuka di dalam iframe. Menunggu 15 detik...";
-      offerTimer=setTimeout(()=>{offerTimer=null;if(!autoRunning||myCycle!==cycle)return;waitingForOffer=false;hint.textContent="15 detik selesai. Mengembalikan ke Dollar Rise...";waitForMainLoad("run")},15000);
+      let remaining=15;
+      hint.textContent=`Offer sedang dibuka di dalam iframe. Menunggu ${remaining} detik...`;
+      countdownTimer=setInterval(()=>{
+        remaining--;
+        if(remaining>=0){
+          hint.textContent=`Offer sedang dibuka di dalam iframe. Menunggu ${remaining} detik...`;
+        }
+        if(remaining<=0){clearInterval(countdownTimer);countdownTimer=null}
+      },1000);
+      offerTimer=setTimeout(()=>{offerTimer=null;if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null}if(!autoRunning||myCycle!==cycle)return;waitingForOffer=false;hint.textContent="15 detik selesai. Mengembalikan ke Dollar Rise...";waitForMainLoad("run")},15000);
       return;
     }
     if(event.data.type==="OFFER_LIMIT_REACHED"){
