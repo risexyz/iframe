@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Learning Center</title>
+  <title>Auto DR</title>
   <style>
     *{box-sizing:border-box}
     html,body{margin:0;min-height:100%;font-family:Arial,sans-serif;background:#f4f6f8;color:#222}
@@ -22,7 +22,7 @@
 <body>
   <div id="loading" class="loading">Memeriksa session...</div>
   <main class="app">
-    <header class="header"><div><div class="title">Learning Center</div><div class="user">Login sebagai: <span id="userName">-</span></div></div><button id="logoutButton" class="logout" type="button">Logout</button></header>
+    <header class="header"><div><div class="title">Auto DR</div><div class="user">Login sebagai: <span id="userName">-</span></div></div><button id="logoutButton" class="logout" type="button">Logout</button></header>
     <section class="card">
       <div class="toolbar"><h2>Learning</h2><div class="actions"><button id="runButton" class="run" type="button">▶ JALANKAN</button><button id="stopButton" class="stop" type="button" disabled>■ STOP</button></div></div>
       <div class="frame-wrap"><iframe id="learningFrame" title="Learning content" src="https://dolarrise.pages.dev/" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
@@ -74,10 +74,6 @@
     waitingForNextOffer=action==="next";
     hint.textContent=action==="next"?"Kembali ke Dollar Rise, menunggu halaman siap...":"Kembali ke Dollar Rise, menunggu halaman siap...";
     learningFrame.src=DOLLARRISE_URL;
-
-    // Fallback: beberapa kondisi browser/cache dapat membuat load event tidak
-    // berguna untuk state machine. Jika setelah 5 detik belum ada event load,
-    // anggap halaman utama siap dan lanjutkan loop.
     const myCycle=cycle;
     mainLoadTimer=setTimeout(()=>{
       if(!autoRunning||myCycle!==cycle||!waitingForIframe)return;
@@ -100,58 +96,28 @@
 
   window.addEventListener("message",event=>{
     if(event.origin!==DOLLARRISE_ORIGIN||!event.data||typeof event.data!=="object"||!autoRunning)return;
-
     if(event.data.type==="OPEN_OFFER"){
       const offerUrl=event.data.url;
       if(typeof offerUrl!=="string"||offerUrl.length>2048)return;
       let parsedUrl;try{parsedUrl=new URL(offerUrl)}catch{return}
       if(parsedUrl.protocol!=="https:"&&parsedUrl.protocol!=="http:")return;
-
       const myCycle=cycle;
-      waitingForOffer=true;
-      waitingForIframe=false;
-      waitingForNextOffer=false;
+      waitingForOffer=true;waitingForIframe=false;waitingForNextOffer=false;
       if(mainLoadTimer){clearTimeout(mainLoadTimer);mainLoadTimer=null}
-      clearTimers();
-      iframeLoaded=false;
-      learningFrame.src=parsedUrl.href;
+      clearTimers();iframeLoaded=false;learningFrame.src=parsedUrl.href;
       hint.textContent="Offer sedang dibuka di dalam iframe. Menunggu 15 detik...";
-
-      offerTimer=setTimeout(()=>{
-        offerTimer=null;
-        if(!autoRunning||myCycle!==cycle)return;
-        waitingForOffer=false;
-        hint.textContent="15 detik selesai. Mengembalikan ke Dollar Rise...";
-        waitForMainLoad("run");
-      },15000);
+      offerTimer=setTimeout(()=>{offerTimer=null;if(!autoRunning||myCycle!==cycle)return;waitingForOffer=false;hint.textContent="15 detik selesai. Mengembalikan ke Dollar Rise...";waitForMainLoad("run")},15000);
       return;
     }
-
     if(event.data.type==="OFFER_LIMIT_REACHED"){
-      if(waitingForOffer)return;
-      clearTimers();
-      waitingForIframe=true;
-      waitingForNextOffer=true;
-      iframeLoaded=false;
-      hint.textContent="Unlock terkena limit. Kembali ke Dollar Rise untuk NEXT OFFER...";
-      learningFrame.src=DOLLARRISE_URL;
-      const myCycle=cycle;
-      mainLoadTimer=setTimeout(()=>{
-        if(!autoRunning||myCycle!==cycle||!waitingForIframe)return;
-        finishMainLoad();
-      },5000);
-      return;
+      if(waitingForOffer)return;clearTimers();waitingForIframe=true;waitingForNextOffer=true;iframeLoaded=false;
+      hint.textContent="Unlock terkena limit. Kembali ke Dollar Rise untuk NEXT OFFER...";learningFrame.src=DOLLARRISE_URL;
+      const myCycle=cycle;mainLoadTimer=setTimeout(()=>{if(!autoRunning||myCycle!==cycle||!waitingForIframe)return;finishMainLoad()},5000);return;
     }
-
     if(event.data.type==="OFFER_READY"){
-      if(waitingForOffer)return;
-      if(waitingForIframe)return;
-      waitingForNextOffer=false;
-      hint.textContent="NEXT OFFER siap. Menjalankan offer...";
-      if(iframeLoaded){setTimeout(()=>{if(autoRunning&&!waitingForOffer)sendRunUnlock()},700)}else{waitForMainLoad("run")}
-      return;
+      if(waitingForOffer)return;if(waitingForIframe)return;waitingForNextOffer=false;hint.textContent="NEXT OFFER siap. Menjalankan offer...";
+      if(iframeLoaded){setTimeout(()=>{if(autoRunning&&!waitingForOffer)sendRunUnlock()},700)}else{waitForMainLoad("run")}return;
     }
-
     if(event.data.type==="ALL_OFFERS_DONE"){finishAll()}
   });
 
