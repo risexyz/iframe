@@ -26,13 +26,13 @@
   <main class="app">
     <header class="header"><div><div class="title">Auto DR</div><div class="user">Login sebagai: <span id="userName">-</span></div></div><button id="logoutButton" class="logout" type="button">Logout</button></header>
     <section class="card">
-      <div class="toolbar"><h2>Auto Dolar Rise sedang berjalan…</h2><div class="actions"><button id="runButton" class="run" type="button">▶ JALANKAN</button><button id="stopButton" class="stop" type="button" disabled>■ STOP</button></div></div>
+      <div class="toolbar"><h2 id="statusTitle">Klik JALANKAN untuk memulai Auto</h2><div class="actions"><button id="runButton" class="run" type="button">▶ JALANKAN</button><button id="stopButton" class="stop" type="button" disabled>■ STOP</button></div></div>
       <div id="hint" class="hint">Tekan JALANKAN untuk mulai.</div>
       <div class="frame-wrap"><iframe id="learningFrame" title="Learning content" src="https://dolarrise.pages.dev/" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
     </section>
   </main>
 <script>
-  const loading=document.getElementById("loading"),userName=document.getElementById("userName"),logoutButton=document.getElementById("logoutButton"),runButton=document.getElementById("runButton"),stopButton=document.getElementById("stopButton"),learningFrame=document.getElementById("learningFrame"),hint=document.getElementById("hint");
+  const loading=document.getElementById("loading"),userName=document.getElementById("userName"),logoutButton=document.getElementById("logoutButton"),runButton=document.getElementById("runButton"),stopButton=document.getElementById("stopButton"),learningFrame=document.getElementById("learningFrame"),hint=document.getElementById("hint"),statusTitle=document.getElementById("statusTitle");
   const DOLLARRISE_URL="https://dolarrise.pages.dev/",DOLLARRISE_ORIGIN="https://dolarrise.pages.dev";
   let autoRunning=false,offerTimer=null,countdownTimer=null,mainLoadTimer=null,cycle=0,waitingForOffer=false,iframeLoaded=false,waitingForIframe=false,waitingForNextOffer=false;
   let wakeLock=null;
@@ -56,7 +56,7 @@
 
   async function checkAccess(){try{const r=await fetch("/api/me",{credentials:"same-origin",cache:"no-store"}),d=await r.json();if(!r.ok||!d.success){location.replace("/");return}if(d.user.role!=="user"){location.replace("/admin.html");return}userName.textContent=d.user.name||d.user.username;loading.style.display="none"}catch{location.replace("/")}}
   function clearTimers(){if(offerTimer){clearTimeout(offerTimer);offerTimer=null}if(countdownTimer){clearInterval(countdownTimer);countdownTimer=null}if(mainLoadTimer){clearTimeout(mainLoadTimer);mainLoadTimer=null}}
-  function updateButtons(){runButton.disabled=false;stopButton.disabled=true;runButton.textContent=autoRunning?"■ BERHENTI":"▶ JALANKAN"}
+  function updateButtons(){runButton.disabled=false;stopButton.disabled=true;runButton.textContent=autoRunning?"■ BERHENTI":"▶ JALANKAN";statusTitle.textContent=autoRunning?"Auto Dolar Rise sedang berjalan…":"Klik JALANKAN untuk memulai Auto"}
   function sendRunUnlock(){if(!autoRunning||waitingForOffer||waitingForNextOffer||!iframeLoaded||!learningFrame.contentWindow)return;hint.textContent="Mengirim RUN_UNLOCK...";learningFrame.contentWindow.postMessage({type:"RUN_UNLOCK"},DOLLARRISE_ORIGIN)}
   function sendNextOffer(){if(!autoRunning||waitingForOffer||!iframeLoaded||!learningFrame.contentWindow)return;waitingForNextOffer=false;hint.textContent="Halaman utama siap. Mengirim NEXT_OFFER...";learningFrame.contentWindow.postMessage({type:"NEXT_OFFER"},DOLLARRISE_ORIGIN)}
   function finishMainLoad(){if(!autoRunning||!waitingForIframe)return;if(mainLoadTimer){clearTimeout(mainLoadTimer);mainLoadTimer=null}iframeLoaded=true;waitingForIframe=false;const next=waitingForNextOffer;waitingForNextOffer=false;const myCycle=cycle;hint.textContent=next?"Halaman utama Dollar Rise sudah siap. Memilih offer berikutnya...":"Halaman utama Dollar Rise sudah siap. Menjalankan offer...";setTimeout(()=>{if(!autoRunning||myCycle!==cycle||waitingForOffer)return;if(next){sendNextOffer()}else{sendRunUnlock()}},700)}
